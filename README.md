@@ -1,2 +1,2 @@
-# SpLSI
-Topic modeling with spatial dataset
+# GpLSI
+Graph-Structured Topic Modeling for Documents with Spatial or Covariate Dependencies
