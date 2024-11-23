@@ -1,0 +1,648 @@
+,CELL_ID,CELL_TYPE,CELL_CLASS
+789,790,Tumor 4,Tumor
+198,199,Tumor 3,Tumor
+1303,1304,Tumor 4,Tumor
+507,508,Tumor 4,Tumor
+1083,1084,Tumor 4,Tumor
+720,721,Tumor 4,Tumor
+770,771,Tumor 4,Tumor
+209,210,Tumor 3,Tumor
+339,340,Tumor 4,Tumor
+1363,1364,Tumor 1,Tumor
+1324,1325,Tumor 2 (Ki67 Proliferating),Tumor
+1355,1356,Tumor 1,Tumor
+1349,1350,Tumor 1,Tumor
+1068,1069,Tumor 1,Tumor
+1323,1324,Tumor 2 (Ki67 Proliferating),Tumor
+548,549,Tumor 3,Tumor
+487,488,Tumor 4,Tumor
+533,534,Tumor 4,Tumor
+802,803,Tumor 4,Tumor
+599,600,Tumor 4,Tumor
+496,497,Tumor 2 (Ki67 Proliferating),Tumor
+365,366,Tumor 3,Tumor
+1356,1357,Tumor 1,Tumor
+1346,1347,Tumor 7,Tumor
+1226,1227,Tumor 1,Tumor
+1219,1220,Tumor 7,Tumor
+1301,1302,Tumor 1,Tumor
+1311,1312,Tumor 2 (Ki67 Proliferating),Tumor
+1347,1348,Tumor 2 (Ki67 Proliferating),Tumor
+1216,1217,Tumor 4,Tumor
+79,80,Tumor 6 / DC,Tumor
+218,219,Tumor 2 (Ki67 Proliferating),Tumor
+42,43,Tumor 3,Tumor
+556,557,Tumor 3,Tumor
+546,547,Tumor 2 (Ki67 Proliferating),Tumor
+528,529,Tumor 7,Tumor
+555,556,Tumor 4,Tumor
+543,544,Tumor 7,Tumor
+575,576,Tumor 3,Tumor
+595,596,Tumor 2 (Ki67 Proliferating),Tumor
+585,586,Tumor 2 (Ki67 Proliferating),Tumor
+474,475,Tumor 1,Tumor
+454,455,Tumor 2 (Ki67 Proliferating),Tumor
+468,469,Tumor 7,Tumor
+431,432,Tumor 3,Tumor
+447,448,Tumor 2 (Ki67 Proliferating),Tumor
+261,262,Tumor 7,Tumor
+860,861,Tumor 3,Tumor
+1001,1002,Tumor 7,Tumor
+969,970,Tumor 7,Tumor
+1183,1184,Tumor 7,Tumor
+1097,1098,Tumor 7,Tumor
+744,745,Tumor 2 (Ki67 Proliferating),Tumor
+719,720,Tumor 6 / DC,Tumor
+763,764,Tumor 2 (Ki67 Proliferating),Tumor
+772,773,Tumor 6 / DC,Tumor
+757,758,Tumor 1,Tumor
+1320,1321,Tumor 7,Tumor
+1338,1339,Tumor 6 / DC,Tumor
+1348,1349,Tumor 2 (Ki67 Proliferating),Tumor
+1092,1093,Tumor 1,Tumor
+1111,1112,Tumor 3,Tumor
+1040,1041,Tumor 1,Tumor
+1013,1014,Tumor 7,Tumor
+1056,1057,Tumor 3,Tumor
+1059,1060,Tumor 7,Tumor
+1034,1035,Tumor 2 (Ki67 Proliferating),Tumor
+1087,1088,Tumor 7,Tumor
+1278,1279,Tumor 1,Tumor
+1237,1238,Tumor 3,Tumor
+1308,1309,Tumor 1,Tumor
+1141,1142,Tumor 7,Tumor
+1195,1196,Tumor 3,Tumor
+1153,1154,Tumor 3,Tumor
+1210,1211,Tumor 1,Tumor
+1279,1280,Tumor 2 (Ki67 Proliferating),Tumor
+1225,1226,Tumor 7,Tumor
+1269,1270,Tumor 1,Tumor
+1209,1210,Tumor 2 (Ki67 Proliferating),Tumor
+1208,1209,Tumor 2 (Ki67 Proliferating),Tumor
+1182,1183,Tumor 7,Tumor
+522,523,Tumor 3,Tumor
+527,528,Tumor 7,Tumor
+535,536,Tumor 3,Tumor
+530,531,Tumor 3,Tumor
+235,236,Tumor 4,Tumor
+649,650,Tumor 7,Tumor
+620,621,Tumor 7,Tumor
+58,59,Tumor 3,Tumor
+26,27,Tumor 3,Tumor
+24,25,Tumor 4,Tumor
+413,414,Tumor 4,Tumor
+551,552,Tumor 4,Tumor
+628,629,Tumor 7,Tumor
+618,619,Tumor 3,Tumor
+612,613,Tumor 7,Tumor
+630,631,Tumor 7,Tumor
+643,644,Tumor 7,Tumor
+738,739,Tumor 3,Tumor
+659,660,Tumor 1,Tumor
+760,761,Tumor 3,Tumor
+983,984,Tumor 3,Tumor
+552,553,Tumor 2 (Ki67 Proliferating),Tumor
+536,537,Tumor 2 (Ki67 Proliferating),Tumor
+567,568,Tumor 2 (Ki67 Proliferating),Tumor
+559,560,Tumor 3,Tumor
+652,653,Tumor 2 (Ki67 Proliferating),Tumor
+615,616,Tumor 3,Tumor
+636,637,Tumor 3,Tumor
+613,614,Tumor 2 (Ki67 Proliferating),Tumor
+634,635,Tumor 2 (Ki67 Proliferating),Tumor
+619,620,Tumor 3,Tumor
+605,606,Tumor 3,Tumor
+554,555,Tumor 6 / DC,Tumor
+553,554,Tumor 2 (Ki67 Proliferating),Tumor
+583,584,Tumor 1,Tumor
+590,591,Tumor 3,Tumor
+581,582,Tumor 3,Tumor
+598,599,Tumor 3,Tumor
+589,590,Tumor 3,Tumor
+576,577,Tumor 3,Tumor
+572,573,Tumor 3,Tumor
+631,632,Tumor 3,Tumor
+462,463,Tumor 3,Tumor
+471,472,Tumor 7,Tumor
+477,478,Tumor 3,Tumor
+491,492,Tumor 3,Tumor
+489,490,Tumor 3,Tumor
+457,458,Tumor 4,Tumor
+456,457,Tumor 3,Tumor
+419,420,Tumor 3,Tumor
+406,407,Tumor 7,Tumor
+995,996,Tumor 7,Tumor
+970,971,Tumor 5,Tumor
+961,962,Tumor 2 (Ki67 Proliferating),Tumor
+980,981,Tumor 7,Tumor
+1189,1190,Tumor 3,Tumor
+1176,1177,Tumor 2 (Ki67 Proliferating),Tumor
+1193,1194,Tumor 2 (Ki67 Proliferating),Tumor
+1136,1137,Tumor 2 (Ki67 Proliferating),Tumor
+1105,1106,Tumor 3,Tumor
+1163,1164,Tumor 7,Tumor
+1126,1127,Tumor 2 (Ki67 Proliferating),Tumor
+1177,1178,Tumor 2 (Ki67 Proliferating),Tumor
+941,942,Tumor 3,Tumor
+741,742,Tumor 2 (Ki67 Proliferating),Tumor
+737,738,Tumor 7,Tumor
+781,782,Tumor 1,Tumor
+795,796,Tumor 1,Tumor
+774,775,Tumor 3,Tumor
+768,769,Tumor 3,Tumor
+688,689,Tumor 2 (Ki67 Proliferating),Tumor
+704,705,Tumor 6 / DC,Tumor
+834,835,Tumor 7,Tumor
+892,893,Tumor 2 (Ki67 Proliferating),Tumor
+740,741,Tumor 1,Tumor
+1294,1295,Tumor 3,Tumor
+1313,1314,Tumor 3,Tumor
+1248,1249,Tumor 3,Tumor
+1275,1276,Tumor 3,Tumor
+1342,1343,Tumor 3,Tumor
+1063,1064,Tumor 7,Tumor
+1027,1028,Tumor 7,Tumor
+1065,1066,Tumor 1,Tumor
+1066,1067,Tumor 3,Tumor
+1099,1100,Tumor 3,Tumor
+1089,1090,Tumor 7,Tumor
+1171,1172,Tumor 7,Tumor
+1145,1146,Tumor 3,Tumor
+1256,1257,Tumor 7,Tumor
+1293,1294,Tumor 7,Tumor
+1150,1151,Tumor 2 (Ki67 Proliferating),Tumor
+1125,1126,Tumor 2 (Ki67 Proliferating),Tumor
+1071,1072,Tumor 2 (Ki67 Proliferating),Tumor
+1047,1048,Tumor 2 (Ki67 Proliferating),Tumor
+1043,1044,Tumor 2 (Ki67 Proliferating),Tumor
+1022,1023,Tumor 3,Tumor
+1307,1308,Tumor 3,Tumor
+1240,1241,Tumor 2 (Ki67 Proliferating),Tumor
+1268,1269,Tumor 3,Tumor
+1277,1278,Tumor 3,Tumor
+1229,1230,Tumor 3,Tumor
+1272,1273,Tumor 3,Tumor
+1192,1193,Tumor 3,Tumor
+1168,1169,Tumor 6 / DC,Tumor
+1263,1264,Tumor 2 (Ki67 Proliferating),Tumor
+1222,1223,Tumor 2 (Ki67 Proliferating),Tumor
+1245,1246,Tumor 7,Tumor
+1239,1240,Tumor 2 (Ki67 Proliferating),Tumor
+1253,1254,Tumor 2 (Ki67 Proliferating),Tumor
+1273,1274,Tumor 2 (Ki67 Proliferating),Tumor
+1312,1313,Tumor 3,Tumor
+1085,1086,Tumor 3,Tumor
+1121,1122,Tumor 7,Tumor
+1198,1199,Tumor 2 (Ki67 Proliferating),Tumor
+1174,1175,Tumor 2 (Ki67 Proliferating),Tumor
+1159,1160,Tumor 2 (Ki67 Proliferating),Tumor
+1149,1150,Tumor 3,Tumor
+606,607,Tumor 7,Tumor
+537,538,Tumor 3,Tumor
+492,493,Tumor 2 (Ki67 Proliferating),Tumor
+515,516,Tumor 2 (Ki67 Proliferating),Tumor
+464,465,Tumor 7,Tumor
+446,447,Tumor 7,Tumor
+434,435,Tumor 3,Tumor
+450,451,Tumor 2 (Ki67 Proliferating),Tumor
+650,651,Tumor 3,Tumor
+602,603,Tumor 1,Tumor
+609,610,Tumor 2 (Ki67 Proliferating),Tumor
+627,628,Tumor 2 (Ki67 Proliferating),Tumor
+614,615,Tumor 7,Tumor
+597,598,Tumor 7,Tumor
+395,396,Tumor 4,Tumor
+666,667,Tumor 7,Tumor
+638,639,Tumor 7,Tumor
+640,641,Tumor 7,Tumor
+682,683,Tumor 7,Tumor
+700,701,Tumor 2 (Ki67 Proliferating),Tumor
+734,735,Tumor 4,Tumor
+709,710,Tumor 3,Tumor
+103,104,Tumor 3,Tumor
+110,111,Tumor 3,Tumor
+426,427,Tumor 4,Tumor
+428,429,Tumor 2 (Ki67 Proliferating),Tumor
+55,56,Tumor 3,Tumor
+73,74,Tumor 3,Tumor
+51,52,Tumor 3,Tumor
+15,16,Tumor 7,Tumor
+2,3,Tumor 3,Tumor
+22,23,Tumor 3,Tumor
+5,6,Tumor 7,Tumor
+4,5,Tumor 3,Tumor
+6,7,Tumor 3,Tumor
+1,2,Tumor 1,Tumor
+28,29,Tumor 3,Tumor
+16,17,Tumor 3,Tumor
+49,50,Tumor 7,Tumor
+11,12,Tumor 3,Tumor
+30,31,Tumor 3,Tumor
+50,51,Tumor 3,Tumor
+32,33,Tumor 3,Tumor
+41,42,Tumor 3,Tumor
+380,381,Tumor 4,Tumor
+385,386,Tumor 4,Tumor
+1267,1268,Tumor 7,Tumor
+1289,1290,Tumor 1,Tumor
+1154,1155,Tumor 2 (Ki67 Proliferating),Tumor
+1261,1262,Tumor 7,Tumor
+1286,1287,Tumor 7,Tumor
+1221,1222,Tumor 7,Tumor
+1204,1205,Tumor 7,Tumor
+1238,1239,Tumor 7,Tumor
+1343,1344,Tumor 1,Tumor
+1317,1318,Tumor 3,Tumor
+1309,1310,Tumor 7,Tumor
+1337,1338,Tumor 7,Tumor
+1321,1322,Tumor 1,Tumor
+1290,1291,Tumor 7,Tumor
+1138,1139,Tumor 7,Tumor
+1166,1167,Tumor 7,Tumor
+1112,1113,Tumor 7,Tumor
+717,718,Tumor 2 (Ki67 Proliferating),Tumor
+692,693,Tumor 7,Tumor
+1020,1021,Tumor 2 (Ki67 Proliferating),Tumor
+689,690,Tumor 3,Tumor
+711,712,Tumor 3,Tumor
+675,676,Tumor 3,Tumor
+629,630,Tumor 4,Tumor
+705,706,Tumor 3,Tumor
+726,727,Tumor 3,Tumor
+753,754,Tumor 7,Tumor
+708,709,Tumor 2 (Ki67 Proliferating),Tumor
+954,955,Tumor 7,Tumor
+959,960,Tumor 7,Tumor
+925,926,Tumor 2 (Ki67 Proliferating),Tumor
+671,672,Tumor 2 (Ki67 Proliferating),Tumor
+676,677,Tumor 3,Tumor
+656,657,Tumor 2 (Ki67 Proliferating),Tumor
+694,695,Tumor 2 (Ki67 Proliferating),Tumor
+715,716,Tumor 6 / DC,Tumor
+751,752,Tumor 2 (Ki67 Proliferating),Tumor
+714,715,Tumor 2 (Ki67 Proliferating),Tumor
+771,772,Tumor 2 (Ki67 Proliferating),Tumor
+452,453,Tumor 3,Tumor
+437,438,Tumor 2 (Ki67 Proliferating),Tumor
+359,360,Tumor 4,Tumor
+416,417,Tumor 2 (Ki67 Proliferating),Tumor
+429,430,Tumor 2 (Ki67 Proliferating),Tumor
+390,391,Tumor 7,Tumor
+409,410,Tumor 3,Tumor
+379,380,Tumor 7,Tumor
+397,398,Tumor 7,Tumor
+256,257,Tumor 7,Tumor
+267,268,Tumor 3,Tumor
+238,239,Tumor 7,Tumor
+276,277,Tumor 3,Tumor
+268,269,Tumor 7,Tumor
+996,997,Tumor 3,Tumor
+918,919,Tumor 2 (Ki67 Proliferating),Tumor
+928,929,Tumor 7,Tumor
+911,912,Tumor 7,Tumor
+865,866,Tumor 3,Tumor
+1015,1016,Tumor 4,Tumor
+991,992,Tumor 7,Tumor
+1016,1017,Tumor 3,Tumor
+1039,1040,Tumor 3,Tumor
+937,938,Tumor 7,Tumor
+968,969,Tumor 3,Tumor
+948,949,Tumor 2 (Ki67 Proliferating),Tumor
+1053,1054,Tumor 3,Tumor
+1055,1056,Tumor 3,Tumor
+1062,1063,Tumor 2 (Ki67 Proliferating),Tumor
+1017,1018,Tumor 7,Tumor
+1036,1037,Tumor 3,Tumor
+1155,1156,Tumor 2 (Ki67 Proliferating),Tumor
+1147,1148,Tumor 2 (Ki67 Proliferating),Tumor
+1179,1180,Tumor 2 (Ki67 Proliferating),Tumor
+665,666,Tumor 3,Tumor
+685,686,Tumor 3,Tumor
+654,655,Tumor 3,Tumor
+678,679,Tumor 3,Tumor
+653,654,Tumor 1,Tumor
+672,673,Tumor 3,Tumor
+800,801,Tumor 7,Tumor
+784,785,Tumor 2 (Ki67 Proliferating),Tumor
+788,789,Tumor 7,Tumor
+767,768,Tumor 2 (Ki67 Proliferating),Tumor
+811,812,Tumor 2 (Ki67 Proliferating),Tumor
+828,829,Tumor 7,Tumor
+873,874,Tumor 1,Tumor
+807,808,Tumor 1,Tumor
+787,788,Tumor 3,Tumor
+842,843,Tumor 7,Tumor
+862,863,Tumor 2 (Ki67 Proliferating),Tumor
+833,834,Tumor 2 (Ki67 Proliferating),Tumor
+775,776,Tumor 7,Tumor
+791,792,Tumor 7,Tumor
+754,755,Tumor 3,Tumor
+617,618,Tumor 2 (Ki67 Proliferating),Tumor
+745,746,Tumor 3,Tumor
+731,732,Tumor 3,Tumor
+813,814,Tumor 7,Tumor
+823,824,Tumor 2 (Ki67 Proliferating),Tumor
+803,804,Tumor 6 / DC,Tumor
+847,848,Tumor 2 (Ki67 Proliferating),Tumor
+877,878,Tumor 7,Tumor
+831,832,Tumor 1,Tumor
+852,853,Tumor 1,Tumor
+748,749,Tumor 6 / DC,Tumor
+761,762,Tumor 6 / DC,Tumor
+1306,1307,Tumor 7,Tumor
+1325,1326,Tumor 1,Tumor
+1236,1237,Tumor 7,Tumor
+1264,1265,Tumor 7,Tumor
+1254,1255,Tumor 3,Tumor
+1186,1187,Tumor 7,Tumor
+1108,1109,Tumor 3,Tumor
+1137,1138,Tumor 7,Tumor
+1129,1130,Tumor 3,Tumor
+1118,1119,Tumor 7,Tumor
+1152,1153,Tumor 3,Tumor
+1173,1174,Tumor 7,Tumor
+903,904,Tumor 3,Tumor
+974,975,Tumor 1,Tumor
+900,901,Tumor 1,Tumor
+872,873,Tumor 2 (Ki67 Proliferating),Tumor
+878,879,Tumor 2 (Ki67 Proliferating),Tumor
+884,885,Tumor 1,Tumor
+913,914,Tumor 6 / DC,Tumor
+942,943,Tumor 2 (Ki67 Proliferating),Tumor
+1124,1125,Tumor 2 (Ki67 Proliferating),Tumor
+1107,1108,Tumor 2 (Ki67 Proliferating),Tumor
+1094,1095,Tumor 6 / DC,Tumor
+1146,1147,Tumor 6 / DC,Tumor
+1315,1316,Tumor 3,Tumor
+1282,1283,Tumor 7,Tumor
+1299,1300,Tumor 3,Tumor
+1271,1272,Tumor 2 (Ki67 Proliferating),Tumor
+1322,1323,Tumor 3,Tumor
+1288,1289,Tumor 2 (Ki67 Proliferating),Tumor
+1276,1277,Tumor 3,Tumor
+1252,1253,Tumor 2 (Ki67 Proliferating),Tumor
+1251,1252,Tumor 2 (Ki67 Proliferating),Tumor
+1334,1335,Tumor 1,Tumor
+1050,1051,Tumor 3,Tumor
+588,589,Tumor 7,Tumor
+587,588,Tumor 7,Tumor
+580,581,Tumor 1,Tumor
+596,597,Tumor 7,Tumor
+560,561,Tumor 3,Tumor
+538,539,Tumor 3,Tumor
+564,565,Tumor 3,Tumor
+547,548,Tumor 7,Tumor
+539,540,Tumor 6 / DC,Tumor
+499,500,Tumor 7,Tumor
+516,517,Tumor 3,Tumor
+505,506,Tumor 3,Tumor
+497,498,Tumor 3,Tumor
+483,484,Tumor 7,Tumor
+641,642,Tumor 7,Tumor
+637,638,Tumor 2 (Ki67 Proliferating),Tumor
+622,623,Tumor 7,Tumor
+646,647,Tumor 3,Tumor
+660,661,Tumor 7,Tumor
+291,292,Tumor 4,Tumor
+125,126,Tumor 3,Tumor
+113,114,Tumor 3,Tumor
+121,122,Tumor 4,Tumor
+97,98,Tumor 3,Tumor
+95,96,Tumor 4,Tumor
+367,368,Tumor 4,Tumor
+373,374,Tumor 4,Tumor
+54,55,Tumor 3,Tumor
+322,323,Tumor 3,Tumor
+35,36,Tumor 3,Tumor
+1339,1340,Tumor 7,Tumor
+1314,1315,Tumor 7,Tumor
+1285,1286,Tumor 7,Tumor
+1201,1202,Tumor 7,Tumor
+1046,1047,Tumor 3,Tumor
+1064,1065,Tumor 7,Tumor
+1044,1045,Tumor 3,Tumor
+746,747,Tumor 3,Tumor
+762,763,Tumor 7,Tumor
+718,719,Tumor 3,Tumor
+721,722,Tumor 2 (Ki67 Proliferating),Tumor
+752,753,Tumor 6 / DC,Tumor
+780,781,Tumor 3,Tumor
+853,854,Tumor 3,Tumor
+871,872,Tumor 2 (Ki67 Proliferating),Tumor
+848,849,Tumor 2 (Ki67 Proliferating),Tumor
+880,881,Tumor 3,Tumor
+916,917,Tumor 2 (Ki67 Proliferating),Tumor
+945,946,Tumor 6 / DC,Tumor
+906,907,Tumor 3,Tumor
+934,935,Tumor 7,Tumor
+919,920,Tumor 7,Tumor
+972,973,Tumor 3,Tumor
+1002,1003,Tumor 3,Tumor
+840,841,Tumor 4,Tumor
+1086,1087,Tumor 7,Tumor
+723,724,Tumor 6 / DC,Tumor
+713,714,Tumor 6 / DC,Tumor
+691,692,Tumor 3,Tumor
+727,728,Tumor 3,Tumor
+749,750,Tumor 6 / DC,Tumor
+375,376,Tumor 2 (Ki67 Proliferating),Tumor
+387,388,Tumor 3,Tumor
+370,371,Tumor 3,Tumor
+355,356,Tumor 3,Tumor
+1008,1009,Tumor 1,Tumor
+975,976,Tumor 7,Tumor
+1009,1010,Tumor 2 (Ki67 Proliferating),Tumor
+994,995,Tumor 7,Tumor
+1032,1033,Tumor 2 (Ki67 Proliferating),Tumor
+912,913,Tumor 2 (Ki67 Proliferating),Tumor
+939,940,Tumor 2 (Ki67 Proliferating),Tumor
+950,951,Tumor 7,Tumor
+967,968,Tumor 2 (Ki67 Proliferating),Tumor
+920,921,Tumor 2 (Ki67 Proliferating),Tumor
+936,937,Tumor 2 (Ki67 Proliferating),Tumor
+1095,1096,Tumor 1,Tumor
+1070,1071,Tumor 3,Tumor
+1091,1092,Tumor 3,Tumor
+1128,1129,Tumor 3,Tumor
+1110,1111,Tumor 3,Tumor
+822,823,Tumor 6 / DC,Tumor
+837,838,Tumor 6 / DC,Tumor
+838,839,Tumor 2 (Ki67 Proliferating),Tumor
+806,807,Tumor 3,Tumor
+805,806,Tumor 2 (Ki67 Proliferating),Tumor
+851,852,Tumor 7,Tumor
+875,876,Tumor 2 (Ki67 Proliferating),Tumor
+883,884,Tumor 7,Tumor
+855,856,Tumor 7,Tumor
+830,831,Tumor 7,Tumor
+593,594,Tumor 6 / DC,Tumor
+766,767,Tumor 2 (Ki67 Proliferating),Tumor
+732,733,Tumor 2 (Ki67 Proliferating),Tumor
+759,760,Tumor 2 (Ki67 Proliferating),Tumor
+758,759,Tumor 6 / DC,Tumor
+750,751,Tumor 3,Tumor
+773,774,Tumor 7,Tumor
+779,780,Tumor 6 / DC,Tumor
+790,791,Tumor 1,Tumor
+1148,1149,Tumor 2 (Ki67 Proliferating),Tumor
+1025,1026,Tumor 2 (Ki67 Proliferating),Tumor
+977,978,Tumor 2 (Ki67 Proliferating),Tumor
+958,959,Tumor 1,Tumor
+1106,1107,Tumor 2 (Ki67 Proliferating),Tumor
+1113,1114,Tumor 7,Tumor
+1078,1079,Tumor 1,Tumor
+1076,1077,Tumor 2 (Ki67 Proliferating),Tumor
+1127,1128,Tumor 2 (Ki67 Proliferating),Tumor
+1117,1118,Tumor 2 (Ki67 Proliferating),Tumor
+1098,1099,Tumor 1,Tumor
+1102,1103,Tumor 2 (Ki67 Proliferating),Tumor
+1205,1206,Tumor 2 (Ki67 Proliferating),Tumor
+1161,1162,Tumor 2 (Ki67 Proliferating),Tumor
+1028,1029,Tumor 3,Tumor
+1004,1005,Tumor 2 (Ki67 Proliferating),Tumor
+1281,1282,Tumor 3,Tumor
+1298,1299,Tumor 7,Tumor
+1037,1038,Tumor 7,Tumor
+1060,1061,Tumor 7,Tumor
+1030,1031,Tumor 7,Tumor
+1005,1006,Tumor 7,Tumor
+1048,1049,Tumor 1,Tumor
+1035,1036,Tumor 7,Tumor
+1023,1024,Tumor 3,Tumor
+1139,1140,Tumor 7,Tumor
+1101,1102,Tumor 3,Tumor
+1169,1170,Tumor 2 (Ki67 Proliferating),Tumor
+1131,1132,Tumor 7,Tumor
+1170,1171,Tumor 1,Tumor
+1160,1161,Tumor 1,Tumor
+1133,1134,Tumor 2 (Ki67 Proliferating),Tumor
+1132,1133,Tumor 1,Tumor
+1093,1094,Tumor 2 (Ki67 Proliferating),Tumor
+577,578,Tumor 3,Tumor
+562,563,Tumor 3,Tumor
+557,558,Tumor 6 / DC,Tumor
+578,579,Tumor 3,Tumor
+64,65,Tumor 3,Tumor
+65,66,Tumor 3,Tumor
+44,45,Tumor 3,Tumor
+56,57,Tumor 7,Tumor
+14,15,Tumor 3,Tumor
+18,19,Tumor 3,Tumor
+1360,1361,Tumor 1,Tumor
+1352,1353,Tumor 7,Tumor
+1266,1267,Tumor 7,Tumor
+1241,1242,Tumor 7,Tumor
+1287,1288,Tumor 7,Tumor
+785,786,Tumor 3,Tumor
+820,821,Tumor 7,Tumor
+923,924,Tumor 7,Tumor
+921,922,Tumor 1,Tumor
+971,972,Tumor 7,Tumor
+938,939,Tumor 3,Tumor
+824,825,Tumor 2 (Ki67 Proliferating),Tumor
+844,845,Tumor 3,Tumor
+861,862,Tumor 7,Tumor
+818,819,Tumor 1,Tumor
+736,737,Tumor 7,Tumor
+796,797,Tumor 3,Tumor
+829,830,Tumor 3,Tumor
+782,783,Tumor 2 (Ki67 Proliferating),Tumor
+812,813,Tumor 7,Tumor
+776,777,Tumor 6 / DC,Tumor
+306,307,Tumor 3,Tumor
+300,301,Tumor 3,Tumor
+304,305,Tumor 7,Tumor
+345,346,Tumor 3,Tumor
+353,354,Tumor 3,Tumor
+364,365,Tumor 3,Tumor
+347,348,Tumor 3,Tumor
+326,327,Tumor 3,Tumor
+327,328,Tumor 7,Tumor
+869,870,Tumor 7,Tumor
+858,859,Tumor 7,Tumor
+904,905,Tumor 7,Tumor
+887,888,Tumor 7,Tumor
+870,871,Tumor 2 (Ki67 Proliferating),Tumor
+693,694,Tumor 1,Tumor
+1199,1200,Tumor 6 / DC,Tumor
+1158,1159,Tumor 3,Tumor
+1049,1050,Tumor 6 / DC,Tumor
+982,983,Tumor 2 (Ki67 Proliferating),Tumor
+987,988,Tumor 2 (Ki67 Proliferating),Tumor
+1331,1332,Tumor 2 (Ki67 Proliferating),Tumor
+1304,1305,Tumor 3,Tumor
+1292,1293,Tumor 2 (Ki67 Proliferating),Tumor
+1336,1337,Tumor 3,Tumor
+1341,1342,Tumor 2 (Ki67 Proliferating),Tumor
+1041,1042,Tumor 7,Tumor
+1042,1043,Tumor 7,Tumor
+1031,1032,Tumor 1,Tumor
+57,58,Tumor 3,Tumor
+1330,1331,Tumor 7,Tumor
+1310,1311,Tumor 7,Tumor
+1335,1336,Tumor 7,Tumor
+1353,1354,Tumor 7,Tumor
+1350,1351,Tumor 7,Tumor
+856,857,Tumor 7,Tumor
+879,880,Tumor 7,Tumor
+854,855,Tumor 4,Tumor
+866,867,Tumor 2 (Ki67 Proliferating),Tumor
+843,844,Tumor 7,Tumor
+849,850,Tumor 3,Tumor
+888,889,Tumor 2 (Ki67 Proliferating),Tumor
+863,864,Tumor 7,Tumor
+901,902,Tumor 3,Tumor
+893,894,Tumor 3,Tumor
+874,875,Tumor 3,Tumor
+1014,1015,Tumor 2 (Ki67 Proliferating),Tumor
+944,945,Tumor 1,Tumor
+922,923,Tumor 1,Tumor
+949,950,Tumor 2 (Ki67 Proliferating),Tumor
+984,985,Tumor 7,Tumor
+947,948,Tumor 1,Tumor
+929,930,Tumor 7,Tumor
+899,900,Tumor 3,Tumor
+988,989,Tumor 7,Tumor
+783,784,Tumor 6 / DC,Tumor
+755,756,Tumor 1,Tumor
+769,770,Tumor 3,Tumor
+793,794,Tumor 6 / DC,Tumor
+808,809,Tumor 7,Tumor
+669,670,Tumor 6 / DC,Tumor
+712,713,Tumor 1,Tumor
+735,736,Tumor 7,Tumor
+621,622,Tumor 2 (Ki67 Proliferating),Tumor
+639,640,Tumor 2 (Ki67 Proliferating),Tumor
+623,624,Tumor 2 (Ki67 Proliferating),Tumor
+608,609,Tumor 1,Tumor
+1196,1197,Tumor 1,Tumor
+1228,1229,Tumor 3,Tumor
+1185,1186,Tumor 7,Tumor
+1211,1212,Tumor 3,Tumor
+1212,1213,Tumor 3,Tumor
+1244,1245,Tumor 2 (Ki67 Proliferating),Tumor
+1215,1216,Tumor 2 (Ki67 Proliferating),Tumor
+978,979,Tumor 7,Tumor
+1000,1001,Tumor 1,Tumor
+1018,1019,Tumor 3,Tumor
+935,936,Tumor 3,Tumor
+909,910,Tumor 2 (Ki67 Proliferating),Tumor
+930,931,Tumor 3,Tumor
+926,927,Tumor 3,Tumor
+951,952,Tumor 7,Tumor
+697,698,Tumor 3,Tumor
+707,708,Tumor 1,Tumor
+680,681,Tumor 6 / DC,Tumor
+658,659,Tumor 2 (Ki67 Proliferating),Tumor
+1255,1256,Tumor 3,Tumor
+1291,1292,Tumor 2 (Ki67 Proliferating),Tumor
+1327,1328,Tumor 2 (Ki67 Proliferating),Tumor
+1247,1248,Tumor 6 / DC,Tumor
+1259,1260,Tumor 6 / DC,Tumor
+1235,1236,Tumor 3,Tumor
+664,665,Tumor 2 (Ki67 Proliferating),Tumor
+673,674,Tumor 1,Tumor
+698,699,Tumor 7,Tumor
+670,671,Tumor 1,Tumor
+651,652,Tumor 1,Tumor
+600,601,Tumor 1,Tumor
