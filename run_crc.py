@@ -67,8 +67,8 @@ if __name__ == "__main__":
     eps = float(sys.argv[5])
 
     root_path = os.path.join(os.getcwd(), "data/stanford-crc")
-    dataset_root = os.path.join(root_path, "output")
-    model_root = os.path.join(root_path, "model")
+    dataset_root = os.path.join(root_path, "output/output_3hop")
+    model_root = os.path.join(root_path, "model/model_3hop")
     
     meta_path = os.path.join(root_path, "charville_labels.csv")
     meta = pd.read_csv(meta_path)
@@ -119,7 +119,10 @@ if __name__ == "__main__":
     # run GpLSI
     start_time = time.time()
     model_gplsi = gplsi.GpLSI_(
-        lamb_start=lamb_start, step_size=step_size, grid_len=grid_len, eps=eps
+        lamb_start=lamb_start,
+        step_size=step_size,
+        grid_len=grid_len,
+        eps=eps
     )
     model_gplsi.fit(X.values, K, edge_df, weights)
     time_gplsi = time.time() - start_time

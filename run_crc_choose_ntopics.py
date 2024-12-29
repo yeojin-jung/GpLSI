@@ -185,8 +185,8 @@ if __name__ == "__main__":
         print("Processing data...")
         nfolds = 5
         root_path = os.path.join(os.getcwd(), "data/stanford-crc")
-        dataset_root = os.path.join(root_path, "output_3hop")
-        model_root = os.path.join(root_path, "model_3hop")
+        dataset_root = os.path.join(root_path, "output/output_3hop")
+        model_root = os.path.join(root_path, "model/model_3hop")
         fig_root = os.path.join(model_root, "fig")
         os.makedirs(model_root, exist_ok=True)
         os.makedirs(fig_root, exist_ok=True)
@@ -221,7 +221,10 @@ if __name__ == "__main__":
 
         # run GpLSI
         model_gplsi = gplsi.GpLSI_(
-                lamb_start=lamb_start, step_size=step_size, grid_len=grid_len, verbose=0, eps=eps
+            lamb_start=lamb_start,
+            step_size=step_size,
+            grid_len=grid_len,
+            eps=eps
             )
         model_gplsi.fit(X, K, edge_df, weights)
         local_As_gplsi.append(model_gplsi.A_hat)

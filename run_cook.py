@@ -28,10 +28,6 @@ def jaccard_similarity(x, y):
     n = len(x)
     return intersection / (n-intersection)
 
-def cosine_similarity(x, y):
-    dot_product = np.dot(x, y)
-    return dot_product / (norm(x) * norm(y)) if norm(x) != 0 and norm(y) != 0 else 0
-
 def sample_cuisine(group):
     if len(group) > 2000:
         return group.sample(2000, random_state=1)
@@ -148,7 +144,7 @@ if __name__ == "__main__":
 
     root_path = os.path.join(os.getcwd(), "data/whats-cooking")
     dataset_root = os.path.join(root_path, "dataset")
-    model_root = os.path.join(root_path, "model_full3_jaccard")
+    model_root = os.path.join(root_path, "model")
     path_to_data = os.path.join(dataset_root, 'train.json')
     os.makedirs(model_root, exist_ok=True)
         
@@ -198,7 +194,7 @@ if __name__ == "__main__":
     model_gplsi.fit(X.values, K, edge_df, weights)
     time_gplsi = time.time() - start_time
 
-    # PLSI
+    # pLSI
     start_time = time.time()
     model_plsi = gplsi.GpLSI_(
         method="pLSI"
@@ -212,26 +208,24 @@ if __name__ == "__main__":
     model_lda.fit(D)
     time_lda = time.time() - start_time
 
-    save_path = os.path.join(model_root, f'cooking_model_gplsi_all_{K}.pkl')
+    save_path = os.path.join(model_root, f'cook_model_gplsi_all_{K}.pkl')
     with open(save_path, "wb") as f:
             pickle.dump(model_gplsi, f)
 
-    save_path = os.path.join(model_root, f'cooking_model_plsi_all_{K}.pkl')
+    save_path = os.path.join(model_root, f'cook_model_plsi_all_{K}.pkl')
     with open(save_path, "wb") as f:
             pickle.dump(model_plsi, f)
 
-    save_path = os.path.join(model_root, f'cooking_model_lda_all_{K}.pkl')
+    save_path = os.path.join(model_root, f'cook_model_lda_all_{K}.pkl')
     with open(save_path, "wb") as f:
             pickle.dump(model_lda, f)
 
-    # align models
     results = []
 
     W_gplsi = model_gplsi.W_hat
     W_plsi = model_plsi.W_hat
     W_lda = model_lda.transform(D.values)
 
-    # Align A_hat
     A_hat_gplsi = model_gplsi.A_hat.T
     A_hat_plsi = model_plsi.A_hat.T
     A_hat_lda = model_lda.components_ / model_lda.components_.sum(axis=1)[:, np.newaxis]
@@ -243,17 +237,6 @@ if __name__ == "__main__":
     Ahats = [A_hat_gplsi, A_hat_plsi, A_hat_lda]
 
     print(times)
-
-    # fig, axes = plt.subplots(1,3, figsize=(18,6))
-    # for j, ax in enumerate(axes):
-    #    w = np.argmax(Whats[j], axis=1)
-    #    samp_coord_ = coord_df.copy()
-    #    samp_coord_['tpc'] = w
-    #    sns.scatterplot(x='x',y='y',hue='tpc', data=samp_coord_, palette='viridis', ax=ax, s=20)
-    #    name = names[j]
-    #    ax.set_title(f'{name} (chaos:{np.round(chaoss[j],8)}, moran:{np.round(morans[j],3)}, time:{np.round(times[j],2)})')
-    # plt.tight_layout()
-    # plt.show()
 
     results.append(
         {

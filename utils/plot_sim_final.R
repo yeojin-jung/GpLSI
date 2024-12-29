@@ -93,8 +93,8 @@ plot_everything = function(res_df, error_columns, method_names){
 }
 
 # Read in data
-setwd("/Users/jeong-yeojin/Dropbox/SpLSI/simulation/results_final_final")
-files = list.files("/Users/jeong-yeojin/Dropbox/SpLSI/simulation/results_final_final")
+model_root = file.path(getwd(), 'simulation/results_final')
+files = list.files(model_root)
 res_df = vroom(files)
 
 method_names = c("pLSI", "GpLSI", "GpLSI onestep", "GpLSI XTX", "TopicSCORE", "LDA", "SLDA")
@@ -166,8 +166,8 @@ p11 <- ggplot(res_df1, aes(x = N,
 
 
 # Graph Smoothness
-setwd("/Users/jeong-yeojin/Dropbox/SpLSI/simulation/ncluster")
-files = list.files("/Users/jeong-yeojin/Dropbox/SpLSI/simulation/ncluster")
+model_root = file.path(getwd(), 'simulation/ncluster')
+files = list.files(model_root)
 res_cluster = vroom(files)
 
 res_df_long <- res_cluster %>%

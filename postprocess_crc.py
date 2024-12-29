@@ -27,10 +27,8 @@ def _euclidean_proj_simplex(v, s=1):
 def get_A_hat(W_hat, M):
         projector = (np.linalg.inv(W_hat.T.dot(W_hat))).dot(W_hat.T)
         theta = projector.dot(M)
-        #theta = (H_hat @ L_hat) @ V_hat.T
         theta_simplex_proj = np.array([_euclidean_proj_simplex(x) for x in theta])
         return theta_simplex_proj
-
 
 def align_matrices(ntopics_list, matrices_list_A, matrices_list_W):
     for ntopic1, ntopic2 in zip(ntopics_list[:-1], ntopics_list[1:]):
@@ -122,13 +120,11 @@ if __name__ == "__main__":
         X = D_all.iloc[:, 1:9].div(row_sums, axis=0)
         print(X.shape)
 
-        #matrices_A_gplsi.append(results['A_hat_gplsi'][0])
         W = results['W_hat_gplsi'][0]
         matrices_W_gplsi.append(W)
         Ahat = get_A_hat(W, X)
         matrices_A_gplsi.append(Ahat)
         
-        #matrices_A_plsi.append(results['A_hat_plsi'][0])
         W = results['W_hat_plsi'][0]
         matrices_W_plsi.append(W)
         Ahat = get_A_hat(W, X)

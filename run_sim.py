@@ -15,9 +15,6 @@ import numpy as np
 from sklearn.model_selection import ParameterGrid
 import pandas as pd
 
-# import warnings
-
-# Lazy fix for suppressing warnings
 import logging
 
 logging.captureWarnings(True)

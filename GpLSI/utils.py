@@ -67,8 +67,6 @@ def get_folds_disconnected_G(edge_df):
         path = get_shortest_paths(mst, srn)
         for node, length in path.items():
             folds[length % 5].append(node)
-        #fold1.extend([key for key, value in path.items() if value % 2 == 0])
-        #fold2.extend([key for key, value in path.items() if value % 2 == 1])
     return srn, folds, G, mst
 
 
@@ -82,14 +80,12 @@ def interpolate_X(X, G, folds, foldnum):
         X_tilde[node, :] = np.mean(X[neighs, :], axis=0)
     return X_tilde
 
-
 def trunc_svd(X, K):
     U, L, VT = svd(X, full_matrices=False)
     U_k = U[:, :K]
     L_k = np.diag(L[:K])
     VT_k = VT[:K, :]
     return U_k, L_k, VT_k.T
-
 
 def proj_simplex(v):
     n = len(v)
@@ -100,7 +96,6 @@ def proj_simplex(v):
     theta = (np.cumsum(u) - 1) / rho
     w = np.maximum(v - theta, 0)
     return w
-
 
 def get_component_mapping(stats_1, stats_2):
     similarity = stats_1 @ stats_2.T
@@ -117,12 +112,10 @@ def get_cosine_sim(A_1, A_2):
     s = np.sum(np.diag(A_1_norm @ A_2_norm.T))
     return s/K
 
-
 def get_accuracy(coords_df, n, W_hat):
     assgn = np.argmax(W_hat, axis=1)
     accuracy = np.sum(assgn == coords_df["grp"].values) / n
     return accuracy
-
 
 def get_F_err(W, W_hat):
     err = norm(W.T - W_hat, ord="fro")
@@ -139,7 +132,6 @@ def inverse_L(L):
     inv_d[non_zero] = 1.0 / d[non_zero]
     inv = np.diag(inv_d)
     return L
-
 
 def create_1NN_edge(coord_df):
     nn_model = NearestNeighbors(n_neighbors=2, algorithm="auto")
@@ -182,7 +174,6 @@ def get_CHAOS(W, nodes, coord_df, n, K):
     chaos = d_ij / n
     return 1 - chaos, d_all
 
-
 def moran(W, edge_df):
     # based on https://www.paulamoraga.com/book-spatial/spatial-autocorrelation.html
     weights = edge_df["weight"]
@@ -201,7 +192,6 @@ def moran(W, edge_df):
     I_local = n * (val_by_node / (m2 * 2))
     I = np.sum(I_local) / np.sum(weights)
     return I, I_local
-
 
 def get_PAS(W, edge_df):
     topics = np.argmax(np.array(W), axis=1)
@@ -224,12 +214,6 @@ def get_PAS(W, edge_df):
     pas = (val >= 0.6).mean()
     return 1 - pas
 
-def soft_threshold(x, thr):
-    return np.sign(x)*np.maximum(np.abs(x)-thr, 0)
-
-def hard_threshold(x, thr):
-    return np.where(np.abs(x) < thr, 0, x)
-
 def get_Kfolds(n, nfolds):
     indices = list(range(n))
     random.shuffle(indices)
@@ -247,3 +231,17 @@ def get_Kfolds(n, nfolds):
         folds.append(indices[start:end])  
         start = end  
     return folds
+
+def plot_fold_cv(lambd_grid, lambd_errs, lambd, N):
+    cv_1 = np.round(lambd_grid[np.argmin(lambd_errs["fold_errors"][0])], 5)
+    cv_2 = np.round(lambd_grid[np.argmin(lambd_errs["fold_errors"][1])], 5)
+    cv_final = lambd
+    for j, fold_errs in lambd_errs["fold_errors"].items():
+        plt.plot(np.log(lambd_grid), fold_errs, label=f"Fold {j}", marker="o")
+    plt.xlabel("Lambda")
+    plt.ylabel("Errors")
+    plt.text(cv_1, lambd_errs["fold_errors"][0][0], cv_1, color="blue")
+    plt.text(cv_1, lambd_errs["fold_errors"][1][0], cv_2, color="orange")
+    plt.title(f"Lambda CV = {cv_final}")
+    plt.legend()
+    plt.show()

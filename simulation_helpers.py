@@ -68,12 +68,10 @@ def run_simul(
     start_seed=None,
 ):
     results = defaultdict(list)
-    models = {'gplsi': [], 'gplsi_XTX':[], 'plsi': [], 'tscore': [], 'lda': [], 'slda': []}
+    models = {'gplsi': [], 'plsi': [], 'tscore': [], 'lda': [], 'slda': []}
 
-    # Activate automatic conversion of numpy objects to rpy2 objects
     numpy2ri.activate()
 
-    # Import the necessary R packages
     nnls = rpackages.importr('nnls')
     rARPACK = rpackages.importr('rARPACK')
     quadprog = rpackages.importr('quadprog')
@@ -83,8 +81,7 @@ def run_simul(
     r['source']('topicscore.R')
 
 
-    # print(f"Running simulations for N={N}, n={n}, p={p}, K={K}, r={r}, m={m}, phi={phi}...")
-    model_save_loc = os.path.join(os.getcwd(), "sim_models_final_final")
+    model_save_loc = os.path.join(os.getcwd(), "sim_models")
     file_base = os.path.join(model_save_loc, f"simul_N={N}_n={n}_K={K}_p={p}")
     extensions = ['.csv', '.pkl']
     if not os.path.exists(model_save_loc):
@@ -92,8 +89,6 @@ def run_simul(
     
     for trial in range(nsim):
         pkl_loc = f"{file_base}_trial={trial}{extensions[1]}"
-        #if os.path.exists(pkl_loc):
-        #    continue
         os.system(f"echo Running trial {trial}...")
         # Generate topic data and graph
         regens = 0
@@ -129,7 +124,8 @@ def run_simul(
                 regens += 1
 
 
-        # Vanilla SVD
+        # pLSI
+        print("Running pLSI...")
         start_time = time.time()
         model_plsi = gplsi.GpLSI_(
             method="pLSI"
@@ -138,6 +134,7 @@ def run_simul(
         time_plsi = time.time() - start_time
 
         # GpLSI
+        print("Running GpLSI...")
         start_time = time.time()
         model_gplsi = gplsi.GpLSI_(
             lamb_start=lamb_start,
@@ -148,19 +145,6 @@ def run_simul(
         model_gplsi.fit(X, K, edge_df, weights)
         time_gplsi= time.time() - start_time
         print(f"CV Lambda is {model_gplsi.lambd}")
-
-        # GpLSI using XTX/n for initial V0
-        start_time = time.time()
-        model_gplsi_XTX = gplsi.GpLSI_(
-            lamb_start=lamb_start,
-            step_size=step_size,
-            grid_len=grid_len,
-            eps=eps,
-            initialize2=True
-        )
-        model_gplsi_XTX.fit(X, K, edge_df, weights)
-        time_gplsi_XTX= time.time() - start_time
-        print(f"CV Lambda is {model_gplsi_XTX.lambd}")
 
         # LDA 
         print("Running LDA...")
@@ -173,6 +157,7 @@ def run_simul(
         time_lda = time.time() - start_time
 
         # SLDA
+        print("Running SLDA...")
         start_time = time.time()
         model_slda = utils.spatial_lda.model.run_simulation(X, K, coords_df)
         A_hat_slda = model_slda.components_
@@ -186,34 +171,26 @@ def run_simul(
         # Record errors
         P_plsi = get_component_mapping(model_plsi.W_hat.T, W)
         P_gplsi = get_component_mapping(model_gplsi.W_hat.T, W)
-        P_gplsi_onestep = get_component_mapping(model_gplsi.W_hat_init.T, W)
-        P_gplsi_XTX = get_component_mapping(model_gplsi_XTX.W_hat.T, W)
         P_ts = get_component_mapping(W_hat_ts.T, W)
         P_lda = get_component_mapping(W_hat_lda.T, W)
         P_slda = get_component_mapping(model_slda.topic_weights.values.T, W)
         
-        # permute W's
+        # Align W's
         W_hat_plsi = model_plsi.W_hat @ P_plsi
         W_hat_gplsi = model_gplsi.W_hat @ P_gplsi
-        W_hat_gplsi_onestep = model_gplsi.W_hat_init @ P_gplsi_onestep
-        W_hat_gplsi_XTX = model_gplsi_XTX.W_hat @ P_gplsi_XTX
         W_hat_ts = W_hat_ts @ P_ts
         W_hat_lda = W_hat_lda @ P_lda
         W_hat_slda = model_slda.topic_weights.values @ P_slda
        
-        # permute A's
+        # Align A's
         P_plsi_A = get_component_mapping(model_plsi.A_hat, A.T)
         P_gplsi_A = get_component_mapping(model_gplsi.A_hat, A.T)
-        P_gplsi_A_onestep = get_component_mapping(model_gplsi.A_hat_init, A.T)
-        P_gplsi_XTX_A = get_component_mapping(model_gplsi_XTX.A_hat, A.T)
         P_ts_A = get_component_mapping(A_hat_ts, A.T)
         P_lda_A = get_component_mapping(A_hat_lda, A.T)
         P_slda_A = get_component_mapping(A_hat_slda.T, A.T)
 
         A_hat_plsi = P_plsi_A.T @ model_plsi.A_hat
         A_hat_gplsi = P_gplsi_A.T @ model_gplsi.A_hat
-        A_hat_gplsi_onestep = P_gplsi_A_onestep.T @ model_gplsi.A_hat_init
-        A_hat_gplsi_XTX = P_gplsi_XTX_A.T @ model_gplsi.A_hat
         A_hat_ts = P_ts_A.T @ A_hat_ts
         A_hat_lda = P_lda_A.T @ A_hat_lda
         A_hat_slda = P_slda_A.T @ A_hat_slda.T
@@ -231,20 +208,6 @@ def run_simul(
             get_F_err(A_hat_gplsi, A),
             get_l1_err(A_hat_gplsi, A),
             get_accuracy(coords_df, n, W_hat_gplsi),
-        ]
-        err_acc_gplsi_onestep = [
-            get_F_err(W_hat_gplsi_onestep, W),
-            get_l1_err(W_hat_gplsi_onestep, W),
-            get_F_err(A_hat_gplsi_onestep, A),
-            get_l1_err(A_hat_gplsi_onestep, A),
-            get_accuracy(coords_df, n, W_hat_gplsi_onestep),
-        ]
-        err_acc_gplsi_XTX = [
-            get_F_err(W_hat_gplsi_XTX, W),
-            get_l1_err(W_hat_gplsi_XTX, W),
-            get_F_err(A_hat_gplsi_XTX, A),
-            get_l1_err(A_hat_gplsi_XTX, A),
-            get_accuracy(coords_df, n, W_hat_gplsi_XTX),
         ]
         err_acc_ts = [
             get_F_err(W_hat_ts, W),
@@ -280,8 +243,6 @@ def run_simul(
         results["A_plsi_err"].append(err_acc_plsi[2])
         results["A_plsi_l1_err"].append(err_acc_plsi[3])
         results["plsi_acc"].append(err_acc_plsi[4])
-        print(results['plsi_err'])
-        print(results["A_plsi_err"])
 
         results["gplsi_err"].append(err_acc_gplsi[0])
         results["gplsi_l1_err"].append(err_acc_gplsi[1])
@@ -289,27 +250,7 @@ def run_simul(
         results["A_gplsi_l1_err"].append(err_acc_gplsi[3])
         results["gplsi_acc"].append(err_acc_gplsi[4])
 
-        results["gplsi_onestep_err"].append(err_acc_gplsi_onestep[0])
-        results["gplsi_onestep_l1_err"].append(err_acc_gplsi_onestep[1])
-        results["A_gplsi_onestep_err"].append(err_acc_gplsi_onestep[2])
-        results["A_gplsi_onestep_l1_err"].append(err_acc_gplsi_onestep[3])
-        results["gplsi_onestep_acc"].append(err_acc_gplsi_onestep[4])
-
-        results["gplsi_XTX_err"].append(err_acc_gplsi_XTX[0])
-        results["gplsi_XTX_l1_err"].append(err_acc_gplsi_XTX[1])
-        results["A_gplsi_XTX_err"].append(err_acc_gplsi_XTX[2])
-        results["A_gplsi_XTX_l1_err"].append(err_acc_gplsi_XTX[3])
-        results["gplsi_XTX_acc"].append(err_acc_gplsi_XTX[4])
-
         results["opt_gamma"].append(model_gplsi.lambd)
-        results["opt_gamma_init"].append(model_gplsi.lambd_init)
-        results["opt_gamma_XTX"].append(model_gplsi_XTX.lambd)
-
-        print(results['gplsi_err'])
-        print(results["A_gplsi_err"])
-
-        print(results['gplsi_onestep_err'])
-        print(results['A_gplsi_onestep_err'])
 
         results["ts_err"].append(err_acc_ts[0])
         results["ts_l1_err"].append(err_acc_ts[1])
@@ -331,15 +272,12 @@ def run_simul(
 
         results["plsi_time"].append(time_plsi)
         results["gplsi_time"].append(time_gplsi)
-        results['gplsi_onestep_time'].append(model_gplsi.time_init)
-        results['gplsi_XTX_time'].append(time_gplsi_XTX)
         results["ts_time"].append(time_ts)
         results["lda_time"].append(time_lda)
         results["slda_time"].append(time_slda)
 
         models['plsi'].append(model_plsi)
         models['gplsi'].append(model_gplsi)
-        models['gplsi_XTX'].append(model_gplsi_XTX)
         models['tscore'].append(A_hat_ts.T)
         models['lda'].append(model_lda)
         models['slda'].append(model_slda)
