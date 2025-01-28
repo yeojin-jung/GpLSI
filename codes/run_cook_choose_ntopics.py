@@ -139,6 +139,7 @@ def preprocess_cook(ingredient_mapping, neighbor_countries_mapping, df, threshol
     # Get count / weight matrix
     D = ingredient_df.iloc[:,:-3]
     row_sums = D.sum(axis=1)
+    N = row_sums.mean()
     X = D.div(row_sums, axis=0)
     n, p = X.shape
     weights = csr_matrix(
@@ -146,7 +147,7 @@ def preprocess_cook(ingredient_mapping, neighbor_countries_mapping, df, threshol
         shape=(n, n),
     )
 
-    return ingredient_df, D, X, edge_df, weights, n
+    return ingredient_df, D, X, N, edge_df, weights, n
 
 
 def divide_folds(ingredient_df, nfolds):
@@ -182,6 +183,7 @@ def shuffle_folds(ingredient_df, edge_df, nfolds):
         
         D_fold.reset_index(drop=True, inplace=True)
         row_sums = D_fold.sum(axis=1)
+        N = row_sums.mean()
         X_fold = D_fold.div(row_sums, axis=0)
         n, p = X_fold.shape
         weights = csr_matrix(
@@ -189,7 +191,7 @@ def shuffle_folds(ingredient_df, edge_df, nfolds):
             shape=(n, n),
         )
         
-        data_inputs.append((D_fold, X_fold, edge_fold, weights))
+        data_inputs.append((D_fold, X_fold, edge_fold, weights, N))
         del D_fold, X_fold, edge_fold, weights
         gc.collect()
 
@@ -277,20 +279,20 @@ if __name__ == "__main__":
     local_As_plsi = []
     local_As_lda = []
     for task in tasks:
-        D_fold, X, edge_df, weights = task
+        D_fold, X, edge_df, weights, N = task
 
         # run GpLSI
         model_gplsi = gplsi.GpLSI_(
                 lamb_start=lamb_start, step_size=step_size, grid_len=grid_len, eps=eps
             )
-        model_gplsi.fit(X.values, K, edge_df, weights)
+        model_gplsi.fit(X.values, N, K, edge_df, weights)
         local_As_gplsi.append(model_gplsi.A_hat)
 
         # run pLSI
         model_plsi = gplsi.GpLSI_(
             method='pLSI'
         )
-        model_plsi.fit(X.values, K, edge_df, weights)
+        model_plsi.fit(X.values, N, K, edge_df, weights)
         local_As_plsi.append(model_plsi.A_hat)
         
         # run LDA

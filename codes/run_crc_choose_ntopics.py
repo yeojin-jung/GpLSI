@@ -47,14 +47,15 @@ def preprocess_crc(coord_df, edge_df, D, phi):
     # edge, coord, X, weights
     nodes = coord_df.index.tolist()
     row_sums = D.sum(axis=1)
-    X = D.div(row_sums, axis=0)  # normalize
+    N = row_sums.mean()
+    X = D.div(row_sums, axis=0)
     n = X.shape[0]
     weights = csr_matrix(
         (edge_df_["weight"].values, (edge_df_["src"].values, edge_df_["tgt"].values)),
         shape=(n, n),
     )
 
-    return D, X.values, edge_df_, coord_df, weights, n, nodes
+    return D, X.values, N, edge_df_, coord_df, weights, n, nodes
 
 
 def divide_folds(filenames, num_parts=2):
@@ -110,8 +111,8 @@ def shuffle_folds(filenames, dataset_root, nfolds):
             del D, edge_df, coords_df
             gc.collect()
 
-        D, X, edge_df, _, weights, _, _ = preprocess_crc(coords_fold, edge_fold, D_fold, phi=0.1)
-        data_inputs.append((D, X, edge_df, weights))
+        D, X, N, edge_df, _, weights, _, _ = preprocess_crc(coords_fold, edge_fold, D_fold, phi=0.1)
+        data_inputs.append((D, X, edge_df, weights, N))
         del D_fold, X, edge_df, weights
         gc.collect()
 
@@ -220,7 +221,7 @@ if __name__ == "__main__":
     local_As_plsi = []
     local_As_lda = []
     for task in tasks:
-        D_fold, X, edge_df, weights = task
+        D_fold, X, edge_df, weights, N = task
 
         # run GpLSI
         model_gplsi = gplsi.GpLSI_(
@@ -229,14 +230,14 @@ if __name__ == "__main__":
             grid_len=grid_len,
             eps=eps
             )
-        model_gplsi.fit(X, K, edge_df, weights)
+        model_gplsi.fit(X, N, K, edge_df, weights)
         local_As_gplsi.append(model_gplsi.A_hat)
 
         # run pLSI
         model_plsi = gplsi.GpLSI_(
             method='pLSI'
         )
-        model_plsi.fit(X.values, K, edge_df, weights)
+        model_plsi.fit(X.values, N, K, edge_df, weights)
         local_As_plsi.append(model_plsi.A_hat)
         
         # run LDA

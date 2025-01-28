@@ -45,14 +45,15 @@ def preprocess_crc(coord_df, edge_df, D, phi):
     # edge, coord, X, weights
     nodes = coord_df.index.tolist()
     row_sums = D.sum(axis=1)
-    X = D.div(row_sums, axis=0)  # normalize
+    N = row_sums.mean()
+    X = D.div(row_sums, axis=0)
     n = X.shape[0]
     weights = csr_matrix(
         (edge_df_["weight"].values, (edge_df_["src"].values, edge_df_["tgt"].values)),
         shape=(n, n),
     )
 
-    return X, edge_df_, coord_df, weights, n, nodes
+    return X, N, edge_df_, coord_df, weights, n, nodes
 
 
 def save_model_results(results, model_name, model, A_hat=None, W_hat=None):
@@ -118,7 +119,7 @@ if __name__ == "__main__":
           patient_id_df.to_csv(patient_id_path, index=False)
 
     D_all = D_all.drop(columns=['filename'])
-    X, edge_df, coord_df, weights, n, nodes = preprocess_crc(coords_all, edge_all, D_all, phi=0.1)
+    X, N, edge_df, coord_df, weights, n, nodes = preprocess_crc(coords_all, edge_all, D_all, phi=0.1)
     
     # run GpLSI
     start_time = time.time()
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         grid_len=grid_len,
         eps=eps
     )
-    model_gplsi.fit(X.values, K, edge_df, weights)
+    model_gplsi.fit(X.values, N, K, edge_df, weights)
     time_gplsi = time.time() - start_time
 
     # run pLSI
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     model_plsi = gplsi.GpLSI_(
         method='pLSI'
     )
-    model_plsi.fit(X.values, K, edge_df, weights)
+    model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
 
     # run LDA

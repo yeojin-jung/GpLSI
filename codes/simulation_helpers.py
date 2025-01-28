@@ -130,16 +130,14 @@ def run_simul(
 
 
         # pLSI
-        print("Running pLSI...")
         start_time = time.time()
         model_plsi = gplsi.GpLSI_(
             method="pLSI"
         )
-        model_plsi.fit(X, K, edge_df, weights)
+        model_plsi.fit(X, N, K, edge_df, weights)
         time_plsi = time.time() - start_time
 
         # GpLSI
-        print("Running GpLSI...")
         start_time = time.time()
         model_gplsi = gplsi.GpLSI_(
             lamb_start=lamb_start,
@@ -147,7 +145,7 @@ def run_simul(
             grid_len=grid_len,
             eps=eps
         )
-        model_gplsi.fit(X, K, edge_df, weights)
+        model_gplsi.fit(X, N, K, edge_df, weights)
         time_gplsi= time.time() - start_time
         print(f"CV Lambda is {model_gplsi.lambd}")
 
@@ -162,7 +160,6 @@ def run_simul(
         time_lda = time.time() - start_time
 
         # SLDA
-        print("Running SLDA...")
         start_time = time.time()
         model_slda = utils.spatial_lda.model.run_simulation(X, K, coords_df)
         A_hat_slda = model_slda.components_
@@ -186,6 +183,7 @@ def run_simul(
         W_hat_ts = W_hat_ts @ P_ts
         W_hat_lda = W_hat_lda @ P_lda
         W_hat_slda = model_slda.topic_weights.values @ P_slda
+        W_hats = [W.T, W_hat_gplsi, W_hat_plsi, W_hat_ts, W_hat_lda, W_hat_slda, coords_df]
        
         # Align A's
         P_plsi_A = get_component_mapping(model_plsi.A_hat, A.T)
@@ -289,6 +287,10 @@ def run_simul(
 
         with open(pkl_loc, "wb") as f:
             pickle.dump(models, f)
+        
+        # optional
+        with open('sim_models/W_hats.pkl', "wb") as f:
+            pickle.dump(W_hats, f)
 
     results = pd.DataFrame(results)
     return results

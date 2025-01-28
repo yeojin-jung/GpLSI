@@ -233,15 +233,11 @@ def get_Kfolds(n, nfolds):
     return folds
 
 def plot_fold_cv(lambd_grid, lambd_errs, lambd, N):
-    cv_1 = np.round(lambd_grid[np.argmin(lambd_errs["fold_errors"][0])], 5)
-    cv_2 = np.round(lambd_grid[np.argmin(lambd_errs["fold_errors"][1])], 5)
     cv_final = lambd
     for j, fold_errs in lambd_errs["fold_errors"].items():
         plt.plot(np.log(lambd_grid), fold_errs, label=f"Fold {j}", marker="o")
     plt.xlabel("Lambda")
     plt.ylabel("Errors")
-    plt.text(cv_1, lambd_errs["fold_errors"][0][0], cv_1, color="blue")
-    plt.text(cv_1, lambd_errs["fold_errors"][1][0], cv_2, color="orange")
     plt.title(f"Lambda CV = {cv_final}")
     plt.legend()
     plt.show()

@@ -129,6 +129,7 @@ def preprocess_cook(df, threshold=True):
     # Get count / weight matrix
     D = ingredient_df.iloc[:,:-3]
     row_sums = D.sum(axis=1)
+    N = row_sums.mean()
     X = D.div(row_sums, axis=0)
     n, p = X.shape
     weights = csr_matrix(
@@ -136,7 +137,7 @@ def preprocess_cook(df, threshold=True):
         shape=(n, n),
     )
 
-    return ingredient_df, D, X, edge_df, weights, n
+    return ingredient_df, D, X, N, edge_df, weights, n
 
 
 if __name__ == "__main__":
@@ -177,7 +178,7 @@ if __name__ == "__main__":
 
     else:
         df = pd.DataFrame(data)
-        ingredient_df, D, X, edge_df, weights, n = preprocess_cook(df, threshold=False)
+        ingredient_df, D, X, N, edge_df, weights, n = preprocess_cook(df, threshold=False)
         del df
         gc.collect()
 
@@ -195,7 +196,7 @@ if __name__ == "__main__":
     model_gplsi = gplsi.GpLSI_(
         lamb_start=lamb_start, step_size=step_size, grid_len=grid_len, eps=eps
     )
-    model_gplsi.fit(X.values, K, edge_df, weights)
+    model_gplsi.fit(X.values, N, K, edge_df, weights)
     time_gplsi = time.time() - start_time
 
     # pLSI
@@ -203,7 +204,7 @@ if __name__ == "__main__":
     model_plsi = gplsi.GpLSI_(
         method="pLSI"
     )
-    model_plsi.fit(X.values, K, edge_df, weights)
+    model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
 
     # LDA

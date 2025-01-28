@@ -52,7 +52,7 @@ class GpLSI_(object):
         self.precondition = precondition
         self.initialize = initialize
 
-    def fit(self, X, K, edge_df, weights):
+    def fit(self, X, N, K, edge_df, weights):
         if self.method == "pLSI":
             print("Running pLSI...")
             self.U, self.L, self.V = svds(X, k=K)
@@ -73,6 +73,7 @@ class GpLSI_(object):
                 self.used_iters
             ) = graphSVD(
                 X,
+                N,
                 K,
                 edge_df,
                 weights,

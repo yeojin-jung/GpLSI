@@ -11,7 +11,6 @@ import networkx as nx
 from scipy.sparse.linalg import svds
 
 from GpLSI.utils import *
-from GpLSI import cfg
 
 import pycvxcluster.pycvxcluster
 
@@ -21,6 +20,7 @@ from multiprocessing import Pool
 
 def graphSVD(
     X,
+    N,
     K,
     edge_df,
     weights,
@@ -30,8 +30,7 @@ def graphSVD(
     maxiter,
     eps,
     verbose,
-    initialize,
-    initialize2,
+    initialize
 ):
     n = X.shape[0]
     srn, folds, G, mst = get_folds_disconnected_G(edge_df)
@@ -45,8 +44,8 @@ def graphSVD(
     if initialize:
         print('Initializing...')
         colsums = np.sum(X, axis=0)
-        cov = X.T @ X - np.diag(colsums)
-        U, L, V  =svds(cov/N, k=K)
+        cov = X.T @ X - np.diag(colsums/N)
+        U, L, V  =svds(cov, k=K)
         V  = V.T
         L = np.diag(L)
         V_init = V

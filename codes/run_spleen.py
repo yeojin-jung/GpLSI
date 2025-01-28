@@ -58,6 +58,7 @@ def preprocess_spleen(coord_df, edge_df, D, phi):
     # edge, coord, X, weights
     nodes = coord_df.index.tolist()
     row_sums = D.sum(axis=1)
+    N = row_sums.mean()
     X = D.div(row_sums, axis=0)  # normalize
     n = X.shape[0]
     weights = csr_matrix(
@@ -65,7 +66,7 @@ def preprocess_spleen(coord_df, edge_df, D, phi):
         shape=(n, n),
     )
 
-    return X, edge_df, coord_df, weights, n, nodes
+    return X, N, edge_df, coord_df, weights, n, nodes
 
 
 if __name__ == "__main__":
@@ -105,7 +106,7 @@ if __name__ == "__main__":
     spleen_coord.columns = ["x", "y"]
     spleen_edge.columns = ["src", "tgt", "distance"]
 
-    X, edge_df, coord_df, weights, n, nodes = preprocess_spleen(spleen_coord, spleen_edge, spleen_D, phi=0.1)
+    X, N, edge_df, coord_df, weights, n, nodes = preprocess_spleen(spleen_coord, spleen_edge, spleen_D, phi=0.1)
     del spleen_edge, spleen_coord
 
     # TopicScore
@@ -136,7 +137,7 @@ if __name__ == "__main__":
         grid_len=grid_len,
         eps=eps
     )
-    model_gplsi.fit(X.values, K, edge_df, weights)
+    model_gplsi.fit(X.values, N, K, edge_df, weights)
     time_gplsi = time.time() - start_time
 
     # pLSI
@@ -144,7 +145,7 @@ if __name__ == "__main__":
     model_plsi = gplsi.GpLSI_(
        method="pLSI"
     )
-    model_plsi.fit(X.values, K, edge_df, weights)
+    model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
 
     # LDA
