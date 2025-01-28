@@ -20,8 +20,13 @@ from cvxpy import Variable
 from cvxpy.problems.objective import Minimize
 from cvxpy.problems.problem import Problem
 
-import pycvxcluster.pycvxcluster
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 
+import pycvxcluster.pycvxcluster
 from GpLSI import generate_topic_model as gen_model
 from GpLSI.utils import *
 from GpLSI import gplsi

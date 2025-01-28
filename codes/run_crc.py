@@ -10,12 +10,16 @@ from collections import defaultdict
 from scipy.sparse import csr_matrix
 
 # !git clone https://github.com/dx-li/pycvxcluster.git
-sys.path.append("./pycvxcluster/")
-import pycvxcluster.pycvxcluster
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 
 import logging
 logging.captureWarnings(True)
 
+import pycvxcluster.pycvxcluster
 from GpLSI.utils import *
 from utils.data_helpers import *
 from GpLSI import gplsi
@@ -66,9 +70,9 @@ if __name__ == "__main__":
     grid_len = int(sys.argv[4])
     eps = float(sys.argv[5])
 
-    root_path = os.path.join(os.getcwd(), "data/stanford-crc")
+    root_path = os.path.join(parent_dir, "data/stanford-crc")
     dataset_root = os.path.join(root_path, "output/output_3hop")
-    model_root = os.path.join(root_path, "model/model_3hop")
+    model_root = os.path.join(parent_dir, "output/stanford-crc")
     
     meta_path = os.path.join(root_path, "charville_labels.csv")
     meta = pd.read_csv(meta_path)

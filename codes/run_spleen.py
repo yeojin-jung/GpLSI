@@ -10,7 +10,11 @@ from scipy.sparse import csr_matrix
 from sklearn.decomposition import LatentDirichletAllocation
 
 # !git clone https://github.com/dx-li/pycvxcluster.git
-sys.path.append("./pycvxcluster/")
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 import pycvxcluster.pycvxcluster
 
 import logging
@@ -84,10 +88,9 @@ if __name__ == "__main__":
     r = robjects.r
     r['source']('topicscore.R')
 
-    root_path = os.path.join(os.getcwd(), "data/spleen")
+    root_path = os.path.join(parent_dir, "data/spleen")
     dataset_root = os.path.join(root_path, "dataset")
-    model_root = os.path.join(root_path, "model")
-    fig_root = os.path.join(root_path, "fig")
+    model_root = os.path.join(parent_dir, "output/spleen")
     path_to_D = os.path.join(dataset_root, "merged_D.pkl")
     path_to_edge = os.path.join(dataset_root, "merged_data.pkl")
     path_to_coord = os.path.join(dataset_root, "merged_coord.pkl")

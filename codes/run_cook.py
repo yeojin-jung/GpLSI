@@ -13,12 +13,16 @@ from scipy.sparse import csr_matrix
 from sklearn.decomposition import LatentDirichletAllocation
 
 # !git clone https://github.com/dx-li/pycvxcluster.git
-sys.path.append("./pycvxcluster/")
-import pycvxcluster.pycvxcluster
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 
 import logging
 logging.captureWarnings(True)
 
+import pycvxcluster.pycvxcluster
 from GpLSI.utils import *
 from utils.data_helpers import *
 from GpLSI import gplsi
@@ -142,9 +146,9 @@ if __name__ == "__main__":
     grid_len = int(sys.argv[4])
     eps = float(sys.argv[5])
 
-    root_path = os.path.join(os.getcwd(), "data/whats-cooking")
+    root_path = os.path.join(parent_dir, "data/whats-cooking")
     dataset_root = os.path.join(root_path, "dataset")
-    model_root = os.path.join(root_path, "model")
+    model_root = os.path.join(parent_dir, "output/whats-cooking")
     path_to_data = os.path.join(dataset_root, 'train.json')
     os.makedirs(model_root, exist_ok=True)
         

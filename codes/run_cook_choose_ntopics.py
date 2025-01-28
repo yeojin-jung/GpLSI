@@ -15,8 +15,11 @@ from collections import defaultdict
 from sklearn.decomposition import LatentDirichletAllocation
 
 # !git clone https://github.com/dx-li/pycvxcluster.git
-sys.path.append("./pycvxcluster/")
-import pycvxcluster.pycvxcluster
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 
 import logging
 logging.captureWarnings(True)
@@ -24,7 +27,6 @@ logging.captureWarnings(True)
 from GpLSI.utils import *
 from utils.data_helpers import *
 from GpLSI import gplsi
-
 
 from mpi4py import MPI
 
@@ -54,7 +56,7 @@ def get_threshold(alpha, n, p, N):
     thres = alpha*np.sqrt(np.log(np.max([n,p]))/(n*N))
     return thres
 
-def preprocess_cook(df, threshold=True):
+def preprocess_cook(ingredient_mapping, neighbor_countries_mapping, df, threshold=True):
     # Balance the number of cuisines across countries
     sampled_df = df.groupby('cuisine',group_keys=False).apply(sample_cuisine).reset_index(drop=True)
 
@@ -239,9 +241,9 @@ if __name__ == "__main__":
     if rank == 0:
         print("Processing data...")
         nfolds = 5
-        root_path = os.path.join(os.getcwd(), "data/whats-cooking")
+        root_path = os.path.join(parent_dir, "data/whats-cooking")
         dataset_root = os.path.join(root_path, "dataset")
-        model_root = os.path.join(root_path, "model")
+        model_root = os.path.join(parent_dir, "output/whats-cooking")
 
         filename = os.path.join(dataset_root, 'processed_edge_df.pkl')
         with open(filename, 'rb') as f:

@@ -9,13 +9,16 @@ from itertools import combinations
 from scipy.sparse import csr_matrix
 from collections import defaultdict
 
-# !git clone https://github.com/dx-li/pycvxcluster.git
-sys.path.append("./pycvxcluster/")
-import pycvxcluster.pycvxcluster
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
 
 import logging
 logging.captureWarnings(True)
 
+import pycvxcluster.pycvxcluster
 from GpLSI.utils import *
 from utils.data_helpers import *
 from GpLSI import gplsi
@@ -184,9 +187,9 @@ if __name__ == "__main__":
     if rank == 0:
         print("Processing data...")
         nfolds = 5
-        root_path = os.path.join(os.getcwd(), "data/stanford-crc")
+        root_path = os.path.join(parent_dir, "data/stanford-crc")
         dataset_root = os.path.join(root_path, "output/output_3hop")
-        model_root = os.path.join(root_path, "model/model_3hop")
+        model_root = os.path.join(parent_dir, "output/stanford-crc")
         fig_root = os.path.join(model_root, "fig")
         os.makedirs(model_root, exist_ok=True)
         os.makedirs(fig_root, exist_ok=True)

@@ -6,6 +6,12 @@ import numpy as np
 import pandas as pd
 from itertools import combinations
 
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
+
 from GpLSI.utils import *
 from utils.data_helpers import *
 
@@ -87,10 +93,9 @@ def get_survival_data(method, meta, coords_all):
 
 
 if __name__ == "__main__":
-    neighbor_size = int(sys.argv[1])
-    root_path = os.path.join(os.getcwd(), "data/stanford-crc")
-    model_root = os.path.join(root_path, f"model/model_{neighbor_size}hop")
-    fig_root = os.path.join(root_path, f"model/model_{neighbor_size}hop/fig")
+    root_path = os.path.join(parent_dir, "data/stanford-crc")
+    model_root = os.path.join(parent_dir, "output/stanford-crc")
+    fig_root = os.path.join(model_root, "fig")
     
     coords_all = pd.read_csv(os.path.join(model_root, 'crc_coords_all.csv'), index_col=None)
     D_all = pd.read_csv(os.path.join(model_root, 'crc_D_all.csv'))

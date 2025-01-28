@@ -8,9 +8,15 @@ import pickle
 # os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 # os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-sys.path.append("./pycvxcluster/")
+# !git clone https://github.com/dx-li/pycvxcluster.git
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.extend([
+    os.path.join(parent_dir, "pycvxcluster"),
+    parent_dir 
+])
+
 import pycvxcluster.pycvxcluster
-from . import simulation_helpers
+import simulation_helpers
 import numpy as np
 from sklearn.model_selection import ParameterGrid
 import pandas as pd
@@ -30,7 +36,7 @@ if __name__ == "__main__":
     nsim = int(config["nsim"])
     p = int(config["p"])
     del config
-    results_dir = os.path.join(os.getcwd(), "results")
+    results_dir = os.path.join(parent_dir, "output/results")
     if not os.path.exists(results_dir):
         try:
             os.makedirs(results_dir)

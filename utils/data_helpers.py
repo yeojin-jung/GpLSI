@@ -52,7 +52,6 @@ def dist_to_exp_weight(df, coords, phi):
 
 
 def dist_to_normalized_weight(distance):
-    # dist_inv = 1/distance
     dist_inv = distance
     norm_dist_inv = (dist_inv - np.min(dist_inv)) / (
         np.max(dist_inv) - np.min(dist_inv)
@@ -172,7 +171,7 @@ def apply_order(spatial_models, ntopics_list):
     return spatial_models
 
 
-def align_everything(file_path, ntopics):
+def align_everything(ingredient_df, file_path, ntopics, cuisine_to_group):
     with open(file_path, 'rb') as f:
         model = pickle.load(f)
 
@@ -231,7 +230,7 @@ def align_everything(file_path, ntopics):
     return W_gplsi, W_plsi, W_lda, A_gplsi, A_plsi, A_lda
 
 
-def plot_topic_by_cuisine(W):
+def plot_topic_by_cuisine(W, cuisine_order):
     pivot_table = W.drop(columns=['topics', 'ingredients', 'group']).pivot_table(index='cuisine', aggfunc='mean')
     pivot_table = pivot_table.div(pivot_table.sum(axis=1), axis=0)
     pivot_table = pivot_table.loc[cuisine_order]
@@ -246,7 +245,7 @@ def plot_topic_by_cuisine(W):
     plt.show()
 
 
-def get_top_anchor_topics(A, ntopics, method, nlargest = 10):
+def get_top_anchor_topics(A, model_root, ntopics, method, nlargest = 10):
     # top weight words
     top_df = []
     for topic in range(ntopics):
