@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gplsi"
+version = "0.1.0"
+description = "Graph-regularized pLSI (GpLSI) for topic modeling on graphs / spatial data."
+readme = "README.md"
+requires-python = ">=3.9"
+
+authors = [
+  { name = "Yeo Jin Jung", email = "jjung1089@gmail.com" }
+]
+license = { text = "MIT" }
+
+keywords = ["topic modeling", "graph regularization", "spatial", "pLSI", "GPLSI"]
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+# --- Runtime dependencies ---
+dependencies = [
+  "numpy>=1.20",
+  "scipy>=1.7",
+  "pandas>=1.3",
+  "matplotlib>=3.4",
+  "seaborn>=0.11",
+  "scikit-learn>=1.0",
+  "networkx>=2.6",
+  "cvxpy>=1.2",
+  "rpy2>=3.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/yeojin-jung/GpLSI"
+Issues = "https://github.com/yeojin-jung/GpLSI/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Optional: if later you add a CLI (e.g. gplsi.cli:main), you can uncomment:
+# [project.scripts]
+# gplsi-run = "gplsi.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "black",
+  "ruff",
+]
