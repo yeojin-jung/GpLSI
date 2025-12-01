@@ -140,7 +140,7 @@ mpiexec -n 5 python run_crc_choose_ntopics.py \
 
 We also provide the code for postprocessing the result to conduct survival analysis (patient outcome prediction).
 ```bash
-python postprocess_crc.py \
+python postprocess_crc.py
 ```
 
 
@@ -153,7 +153,6 @@ If you use this code, please cite:
   author={Jung, Yeo Jin and Donnat, Claire},
   journal={arXiv preprint arXiv:2412.14477},
   year={2025}
-}
 }
 ```
 ## 🔗 Links
