@@ -34,8 +34,18 @@ This repository provides:
 
 ## 📦 Installation
 
-Clone the repo and install in editable mode:
+We recommend using the provided conda environment for a clean and reproducible setup.
 
+#### 1. Create the environment
+
+From the repository root:
+```bash
+conda env create -f environment.yml
+conda activate gplsi-env
+```
+
+#### 2. Install GpLSI
+Clone the repository and install in editable mode:
 ```bash
 git clone https://github.com/yeojin-jung/GpLSI.git
 cd GpLSI
@@ -45,6 +55,22 @@ This will make the package importable as:
 ```bash
 from gplsi import GpLSI
 ```
+
+#### 3. Install pycvxcluster 
+`pycvxcluster` is required for the graph-regularized update step used in GpLSI. Install it manually:
+```bash
+git clone https://github.com/signal-lab-uchicago/pycvxcluster-0.1.0.git
+cd pycvxcluster-0.1.0
+pip install -e .
+```
+
+#### 4. Final sanity check
+Back in the `GpLSI` repo:
+```bash
+python -c "from gplsi import GpLSI; import pycvxcluster.pycvxcluster; print('OK')"
+```
+
+If this prints 'OK', you are fully set up!
 
 ## 📂 Repository Structure
 ```bash
@@ -140,7 +166,7 @@ mpiexec -n 5 python run_crc_choose_ntopics.py \
 
 We also provide the code for postprocessing the result to conduct survival analysis (patient outcome prediction).
 ```bash
-python postprocess_crc.py
+python postprocess_crc.py \
 ```
 
 
@@ -153,6 +179,7 @@ If you use this code, please cite:
   author={Jung, Yeo Jin and Donnat, Claire},
   journal={arXiv preprint arXiv:2412.14477},
   year={2025}
+}
 }
 ```
 ## 🔗 Links

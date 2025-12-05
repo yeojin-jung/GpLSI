@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import faulthandler
+faulthandler.enable(all_threads=True)
+
 from dataclasses import dataclass
 from collections import defaultdict
 from pathlib import Path
@@ -13,10 +16,6 @@ import numpy as np
 import pandas as pd
 from numpy.linalg import norm
 from sklearn.decomposition import LatentDirichletAllocation
-
-import rpy2.robjects as robjects
-import rpy2.robjects.packages as rpackages
-from rpy2.robjects import numpy2ri
 
 # Package-local imports
 from . import gplsi
@@ -71,8 +70,61 @@ class SimulationConfig:
     eps: float = 1e-5
     start_seed: int | None = None
 
+def maybe_run_topicscore(D: np.ndarray, K: int):
+    """Optional TopicScore baseline via R / rpy2.
 
-def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    Returns
+    -------
+    W_hat_ts, A_hat_ts, time_ts
+        If successful, estimated topic weights / loadings and runtime.
+    None, None, None
+        If rpy2 / R / topicscore.R is not available.
+    """
+    try:
+        import rpy2.robjects as robjects
+        import rpy2.robjects.packages as rpackages
+        from rpy2.robjects import numpy2ri
+
+        numpy2ri.activate()
+
+        nnls = rpackages.importr("nnls")
+        rARPACK = rpackages.importr("rARPACK")
+        quadprog = rpackages.importr("quadprog")
+        Matrix = rpackages.importr("Matrix")
+
+        r = robjects.r
+        r["source"]("topicscore.R")
+
+        start_time = time.time()
+        Mquantile = 0
+        K0 = int(np.ceil(1.5 * K))
+        c = min(10 * K, int(np.ceil(D.shape[0] * 0.7)))
+
+        D_r = robjects.r.matrix(D, nrow=D.shape[0], ncol=D.shape[1])
+        norm_score = r["norm_score"]
+        A_hat_ts = norm_score(K, K0, c, D_r)
+        A_hat_ts = np.asarray(A_hat_ts)
+
+        M = np.mean(D, axis=1)
+        M_trunk = np.minimum(M, np.quantile(M, Mquantile))
+        S = np.diag(np.sqrt(1 / M_trunk))
+        H = S @ A_hat_ts
+        projector = np.linalg.inv(H.T @ H) @ H.T
+        theta_W = (projector @ S) @ D
+        W_hat_ts = np.array([_euclidean_proj_simplex(x) for x in theta_W.T])
+        time_ts = time.time() - start_time
+        A_hat_ts = A_hat_ts.T
+
+        return W_hat_ts, A_hat_ts, time_ts
+
+    except Exception as e:
+        print(
+            "⚠️  Skipping TopicScore baseline due to rpy2 / R error:\n"
+            f"    {type(e).__name__}: {e}"
+        )
+        return None, None, None
+
+def run_single_sim(cfg: SimulationConfig, run_topicscore: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
     Run nsim simulation trials for a given configuration.
 
@@ -100,33 +152,7 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
         "slda": [],
     }
 
-    # rpy2 setup (one-time)
-    numpy2ri.activate()
-
-    rpackages.importr("nnls")
-    rpackages.importr("rARPACK")
-    rpackages.importr("quadprog")
-    rpackages.importr("Matrix")
-
-    r = robjects.r
-
-    topicscore_path = REPO_ROOT / "utils" / "topicscore.R"
-    if not topicscore_path.exists():
-        raise FileNotFoundError(
-            f"topicscore.R not found at {topicscore_path}. "
-            "Make sure the external TopicScore code is in utils/topicscore.R."
-        )
-
-    r["source"](str(topicscore_path))
-
-    # where to save models if you want
-    model_save_loc = Path(os.getcwd()) / "sim_models"
-    file_base = model_save_loc / f"simul_N={cfg.N}_n={cfg.n}_K={cfg.K}_p={cfg.p}"
-    extensions = [".csv", ".pkl"]
-    model_save_loc.mkdir(parents=True, exist_ok=True)
-
     for trial in range(cfg.nsim):
-        pkl_loc = f"{file_base}_trial={trial}{extensions[1]}"
         os.system(f"echo Running trial {trial}...")
 
         # ------------------------------------------------------------------
@@ -158,33 +184,10 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
                 regens += 1
 
         # ------------------------------------------------------------------
-        # TopicScore (R)
-        # ------------------------------------------------------------------
-        start_time = time.time()
-        Mquantile = 0
-        K0 = int(np.ceil(1.5 * cfg.K))
-        c = min(10 * cfg.K, int(np.ceil(D.shape[0] * 0.7)))
-        D_r = robjects.r.matrix(D, nrow=D.shape[0], ncol=D.shape[1])  # R matrix
-
-        norm_score = r["norm_score"]
-        A_hat_ts = norm_score(cfg.K, K0, c, D_r)
-        A_hat_ts = np.asarray(A_hat_ts)
-
-        M = np.mean(D, axis=1)
-        M_trunk = np.minimum(M, np.quantile(M, Mquantile))
-        S = np.diag(np.sqrt(1 / M_trunk))
-        H = S @ A_hat_ts
-        projector = np.linalg.inv(H.T @ H) @ H.T
-        theta_W = (projector @ S) @ D
-        W_hat_ts = np.array([_euclidean_proj_simplex(x) for x in theta_W.T])
-        time_ts = time.time() - start_time
-        A_hat_ts = A_hat_ts.T  # K × p
-
-        # ------------------------------------------------------------------
         # pLSI
         # ------------------------------------------------------------------
         start_time = time.time()
-        model_plsi = gplsi.GpLSI_(method="pLSI")
+        model_plsi = gplsi.GpLSI(method="pLSI")
         model_plsi.fit(X, cfg.N, cfg.K, edge_df, weights)
         time_plsi = time.time() - start_time
 
@@ -192,7 +195,7 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
         # GpLSI
         # ------------------------------------------------------------------
         start_time = time.time()
-        model_gplsi = gplsi.GpLSI_(
+        model_gplsi = gplsi.GpLSI(
             lamb_start=cfg.lamb_start,
             step_size=cfg.step_size,
             grid_len=cfg.grid_len,
@@ -242,26 +245,22 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
         # W alignment
         P_plsi = get_component_mapping(model_plsi.W_hat.T, W)
         P_gplsi = get_component_mapping(model_gplsi.W_hat.T, W)
-        P_ts = get_component_mapping(W_hat_ts.T, W)
         P_lda = get_component_mapping(W_hat_lda.T, W)
         P_slda = get_component_mapping(model_slda.topic_weights.values.T, W)
 
         W_hat_plsi = model_plsi.W_hat @ P_plsi
         W_hat_gplsi = model_gplsi.W_hat @ P_gplsi
-        W_hat_ts = W_hat_ts @ P_ts
         W_hat_lda = W_hat_lda @ P_lda
         W_hat_slda = model_slda.topic_weights.values @ P_slda
 
         # A alignment
         P_plsi_A = get_component_mapping(model_plsi.A_hat, A.T)
         P_gplsi_A = get_component_mapping(model_gplsi.A_hat, A.T)
-        P_ts_A = get_component_mapping(A_hat_ts, A.T)
         P_lda_A = get_component_mapping(A_hat_lda, A.T)
         P_slda_A = get_component_mapping(A_hat_slda.T, A.T)
 
         A_hat_plsi = P_plsi_A.T @ model_plsi.A_hat
         A_hat_gplsi = P_gplsi_A.T @ model_gplsi.A_hat
-        A_hat_ts = P_ts_A.T @ A_hat_ts
         A_hat_lda = P_lda_A.T @ A_hat_lda
         A_hat_slda = P_slda_A.T @ A_hat_slda.T
 
@@ -277,9 +276,23 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
 
         err_acc_plsi = _err_acc(W_hat_plsi, A_hat_plsi)
         err_acc_gplsi = _err_acc(W_hat_gplsi, A_hat_gplsi)
-        err_acc_ts = _err_acc(W_hat_ts, A_hat_ts)
         err_acc_lda = _err_acc(W_hat_lda, A_hat_lda)
         err_acc_slda = _err_acc(W_hat_slda, A_hat_slda)
+
+        if run_topicscore:
+            W_hat_ts, A_hat_ts, time_ts = maybe_run_topicscore(D, cfg.K)
+            if W_hat_ts is not None:
+                P_ts = get_component_mapping(W_hat_ts.T, W)
+                P_ts_A = get_component_mapping(A_hat_ts, A.T)
+                W_hat_ts = W_hat_ts @ P_ts
+                A_hat_ts = P_ts_A.T @ A_hat_ts
+                err_acc_ts = _err_acc(W_hat_ts, A_hat_ts)
+                results["ts_err"].append(err_acc_ts[0])
+                results["ts_l1_err"].append(err_acc_ts[1])
+                results["A_ts_err"].append(err_acc_ts[2])
+                results["A_ts_l1_err"].append(err_acc_ts[3])
+                results["ts_acc"].append(err_acc_ts[4])
+                results["ts_time"].append(time_ts)
 
         # ------------------------------------------------------------------
         # Store metrics
@@ -304,12 +317,6 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
         results["gplsi_acc"].append(err_acc_gplsi[4])
         results["opt_gamma"].append(model_gplsi.lambd)
 
-        results["ts_err"].append(err_acc_ts[0])
-        results["ts_l1_err"].append(err_acc_ts[1])
-        results["A_ts_err"].append(err_acc_ts[2])
-        results["A_ts_l1_err"].append(err_acc_ts[3])
-        results["ts_acc"].append(err_acc_ts[4])
-
         results["lda_err"].append(err_acc_lda[0])
         results["lda_l1_err"].append(err_acc_lda[1])
         results["A_lda_err"].append(err_acc_lda[2])
@@ -324,14 +331,12 @@ def run_single_sim(cfg: SimulationConfig) -> Tuple[pd.DataFrame, Dict[str, Any]]
 
         results["plsi_time"].append(time_plsi)
         results["gplsi_time"].append(time_gplsi)
-        results["ts_time"].append(time_ts)
         results["lda_time"].append(time_lda)
         results["slda_time"].append(time_slda)
 
         # store models
         models["plsi"].append(model_plsi)
         models["gplsi"].append(model_gplsi)
-        models["tscore"].append(A_hat_ts.T)
         models["lda"].append(model_lda)
         models["slda"].append(model_slda)
 
@@ -388,6 +393,7 @@ def run_simulation_grid(
     grid: pd.DataFrame,
     task_id: int,
     start_seed: int = 50,
+    run_topicscore: bool = False,
 ) -> pd.DataFrame:
     """
     Run simulations for one row of the grid (selected by task_id).
@@ -429,6 +435,6 @@ def run_simulation_grid(
         start_seed=start_seed,
     )
 
-    results_df, _ = run_single_sim(cfg)
+    results_df, _ = run_single_sim(cfg, run_topicscore=run_topicscore)
     results_df["task_id"] = task_id
     return results_df

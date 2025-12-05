@@ -1,0 +1,29 @@
+name: gplsi-env
+channels:
+  - conda-forge
+dependencies:
+  # Core
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy>=1.9
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - networkx
+  - cvxpy
+  - mpi4py         
+
+  # For graph-regularized backend 
+  - scikit-sparse>=0.4.12
+  - suitesparse
+
+  # For TopicScore / R interface 
+  - rpy2
+
+  # Allow installing extras via pip
+  - pip
+  - pip:
+      # Optional: install pycvxcluster directly from GitHub
+      - pycvxcluster @ git+https://github.com/signal-lab-uchicago/pycvxcluster-0.1.0.git
