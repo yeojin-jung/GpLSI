@@ -9,9 +9,9 @@ from scipy.special import digamma
 from scipy.optimize import linear_sum_assignment
 from tqdm.auto import tqdm
 
-import utils.spatial_lda.admm as admm
-from utils.spatial_lda.online_lda import LatentDirichletAllocation
-from utils.spatial_lda.featurization import make_merged_difference_matrices
+import spatial_lda.admm as admm
+from spatial_lda.online_lda import LatentDirichletAllocation
+from spatial_lda.featurization import make_merged_difference_matrices
 
 
 def _update_xi(

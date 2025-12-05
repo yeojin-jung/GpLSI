@@ -219,7 +219,7 @@ def normaliza_coords(coords):
 def _euclidean_proj_simplex(v, s=1):
     n = v.shape[0]
     # check if we are already on the simplex
-    if v.sum() == s and np.alltrue(v >= 0):
+    if v.sum() == s and np.all(v >= 0):
         return v
     
     u = np.sort(v)[::-1]

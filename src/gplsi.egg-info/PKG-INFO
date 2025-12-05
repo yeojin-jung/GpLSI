@@ -1,3 +1,34 @@
+Metadata-Version: 2.4
+Name: gplsi
+Version: 0.1.0
+Summary: Graph-regularized pLSI (GpLSI) for topic modeling on graphs / spatial data.
+Author-email: Yeo Jin Jung <jjung1089@gmail.com>
+License: MIT
+Project-URL: Homepage, https://github.com/yeojin-jung/GpLSI
+Project-URL: Issues, https://github.com/yeojin-jung/GpLSI/issues
+Keywords: topic modeling,graph regularization,spatial,pLSI,GPLSI
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Information Analysis
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.20
+Requires-Dist: scipy>=1.7
+Requires-Dist: pandas>=1.3
+Requires-Dist: matplotlib>=3.4
+Requires-Dist: seaborn>=0.11
+Requires-Dist: scikit-learn>=1.0
+Requires-Dist: networkx>=2.6
+Requires-Dist: cvxpy>=1.2
+Requires-Dist: rpy2>=3.5
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+
 # 📘 GpLSI: Topic Modeling with Document Graphs
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -34,18 +65,8 @@ This repository provides:
 
 ## 📦 Installation
 
-We recommend using the provided conda environment for a clean and reproducible setup.
+Clone the repo and install in editable mode:
 
-#### 1. Create the environment
-
-From the repository root:
-```bash
-conda env create -f environment.yml
-conda activate gplsi-env
-```
-
-#### 2. Install GpLSI
-Clone the repository and install in editable mode:
 ```bash
 git clone https://github.com/yeojin-jung/GpLSI.git
 cd GpLSI
@@ -55,22 +76,6 @@ This will make the package importable as:
 ```bash
 from gplsi import GpLSI
 ```
-
-#### 3. Install pycvxcluster 
-`pycvxcluster` is required for the graph-regularized update step used in GpLSI. Install it manually:
-```bash
-git clone https://github.com/signal-lab-uchicago/pycvxcluster-0.1.0.git
-cd pycvxcluster-0.1.0
-pip install -e .
-```
-
-#### 4. Final sanity check
-Back in the `GpLSI` repo:
-```bash
-python -c "from gplsi import GpLSI; import pycvxcluster.pycvxcluster; print('OK')"
-```
-
-If this prints 'OK', you are fully set up!
 
 ## 📂 Repository Structure
 ```bash
@@ -166,7 +171,7 @@ mpiexec -n 5 python run_crc_choose_ntopics.py \
 
 We also provide the code for postprocessing the result to conduct survival analysis (patient outcome prediction).
 ```bash
-python postprocess_crc.py \
+python postprocess_crc.py
 ```
 
 
@@ -179,7 +184,6 @@ If you use this code, please cite:
   author={Jung, Yeo Jin and Donnat, Claire},
   journal={arXiv preprint arXiv:2412.14477},
   year={2025}
-}
 }
 ```
 ## 🔗 Links

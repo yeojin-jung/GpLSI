@@ -69,6 +69,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    parser.add_argument(
+        "--run-topicscore",
+        type=bool,
+        default=False,
+        help=(
+            "Run TopicScore baseline. Default: False"
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -86,6 +95,7 @@ def main() -> None:
         grid=grid,
         task_id=args.task_id,
         start_seed=args.start_seed,
+        run_topicscore=args.run_topicscore
     )
 
     # ------------------------------------------------------------------

@@ -197,7 +197,7 @@ def run_crc_analysis(
 
     # ----------------------- GpLSI -------------------------------------
     start_time = time.time()
-    model_gplsi = gplsi.GpLSI_(
+    model_gplsi = gplsi.GpLSI(
         lamb_start=lamb_start,
         step_size=step_size,
         grid_len=grid_len,
@@ -209,7 +209,7 @@ def run_crc_analysis(
 
     # ----------------------- pLSI --------------------------------------
     start_time = time.time()
-    model_plsi = gplsi.GpLSI_(method="pLSI")
+    model_plsi = gplsi.GpLSI(method="pLSI")
     model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
     print(f"[CRC] pLSI done in {time_plsi:.2f} seconds.")

@@ -8,10 +8,8 @@ from .utils import (
     get_folds_disconnected_G, interpolate_X
 )
 
-import pycvxcluster.pycvxcluster
-# use pycvxcluster from "https://github.com/dx-li/pycvxcluster"
-
 from multiprocessing import Pool
+import pycvxcluster.pycvxcluster
 
 def graphSVD(
     X: np.ndarray,
