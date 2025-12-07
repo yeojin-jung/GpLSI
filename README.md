@@ -169,6 +169,27 @@ We also provide the code for postprocessing the result to conduct survival analy
 python postprocess_crc.py \
 ```
 
+## 📚 External Methods Included in This Repository
+
+This repository includes implementations of two external baseline methods used for model comparison in our experiments. These components are included for reproducibility and fair benchmarking against GpLSI.
+
+ 1. TopicSCORE ("A new SVD approach to optimal topic estimation" by Tracy Ke and Minzhe Wang (2017))
+
+ `utils/topicscore.r`
+ 
+ Original repository: https://github.com/ZhengTracyKe/TopicSCORE
+
+ This R script is provided as-is from the TopicSCORE authors to allow comparison with their spectral method for topic modeling.
+ 
+ 2. Spatial LDA ("Modeling Multiplexed Images with Spatial-LDA Reveals Novel Tissue Microenvironments" by Zhenghao Chen et al. (2020))
+
+  `utils/spatial_lda/`
+
+ Original repository: https://github.com/calico/spatial_lda
+
+This directory contains the authors’ implementation of Spatial-LDA.
+To integrate it into our benchmarking pipeline, we made minimal modifications while preserving the original algorithm and logic. All credit for the underlying method belongs to the original authors.
+
 
 ## 📜 Citation
 
