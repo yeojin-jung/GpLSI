@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "stage": "pilot",
+  "output_directory": "results/vertex_hunting_weighting/pilot",
+  "figure_directory": "figures/vertex_hunting_weighting/pilot",
+  "condition_threshold": 1000000000000.0,
+  "graphSVD": {
+    "lamb_start": 0.0001,
+    "step_size": 1.25,
+    "grid_len": 2,
+    "maxiter": 2,
+    "eps": 1e-5,
+    "verbose": 0
+  },
+  "datasets": [
+    {
+      "name": "gplsi_current_pilot",
+      "experiment_family": "gplsi_current_reduced",
+      "generator": "gplsi_current",
+      "seeds": [1200, 1201, 1202, 1203, 1204],
+      "N": 50,
+      "n": 60,
+      "p": 50,
+      "K": 3,
+      "rt": 0.05,
+      "n_clusters": 6,
+      "nearest_n": 3,
+      "phi": 0.1,
+      "generator_method": "strong",
+      "graph_setting": "current_rbf_knn_reduced"
+    },
+    {
+      "name": "tran_zipf_pilot",
+      "experiment_family": "tran_exact_no_informative_graph",
+      "generator": "tran_source_exact",
+      "seeds": [2200, 2201, 2202, 2203, 2204],
+      "N": 100,
+      "n": 80,
+      "p": 500,
+      "K": 3,
+      "alpha_dirichlet": 1.0,
+      "n_anchors": 2,
+      "delta_anchor": 0.01,
+      "a_zipf": 1.0,
+      "offset_zipf": 2.7,
+      "graph_setting": "ordinary_pLSI_no_graph"
+    }
+  ],
+  "preprocessing_variants": [
+    {"order": 0, "name": "P0", "threshold_method": "none", "weight_method": "none", "initialization": "current"},
+    {"order": 1, "name": "P1", "threshold_method": "tran", "alpha": 0.005, "weight_method": "none", "initialization": "current"},
+    {"order": 2, "name": "P2", "threshold_method": "none", "weight_method": "ke_empirical", "tau": 0.0, "weight_common_scale": "none", "initialization": "weighted_debiased"},
+    {"order": 3, "name": "P3", "threshold_method": "tran", "alpha": 0.005, "weight_method": "ke_empirical", "tau": 0.0, "weight_common_scale": "none", "initialization": "weighted_debiased"}
+  ],
+  "primary_vertex_hunters": [
+    {"method": "spa_current", "embedding_source": "U_hat", "parameters": {"precondition": false}},
+    {"method": "svs_star", "embedding_source": "U_hat", "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "pp_spa", "embedding_source": "U_hat", "parameters": {"radius_divisor": 20.0, "m_neighbors": 4, "min_neighbors": 3}}
+  ],
+  "additional_vertex_runs": [
+    {"method": "svs", "embedding_source": "U_hat", "preprocessing_variants": ["P0"], "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "svs_star", "embedding_source": "U_bar", "preprocessing_variants": ["P0"], "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "pp_spa", "embedding_source": "U_bar", "preprocessing_variants": ["P0"], "parameters": {"radius_divisor": 20.0, "m_neighbors": 4, "min_neighbors": 3}}
+  ]
+}

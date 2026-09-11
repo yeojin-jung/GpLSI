@@ -7,12 +7,19 @@ dependencies:
   - numpy
   - pandas
   - scipy>=1.9
-  - pandas
   - scikit-learn
   - matplotlib
   - seaborn
   - networkx
   - cvxpy
+  - pytest
+  - anndata
+  - pyarrow
+  - psutil
+  - threadpoolctl
+  - pyyaml
+  - tqdm
+  - palettable
   - mpi4py         
 
   # For graph-regularized backend 

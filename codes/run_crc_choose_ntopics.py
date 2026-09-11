@@ -35,8 +35,7 @@ def preprocess_crc(
     Normalize CRC coordinates, map cell IDs to integer indices,
     and build graph + row-normalized X.
     """
-    new_columns = [col.replace("X", "x").replace("Y", "y") for col in coord_df.columns]
-    coord_df.columns = new_columns
+    coord_df.rename(columns={"X": "x", "Y": "y"}, inplace=True)
 
     # map CELL_ID -> 0..n-1
     cell_to_idx_dict = dict(zip(coord_df["CELL_ID"], range(coord_df.shape[0])))
@@ -115,25 +114,32 @@ def shuffle_folds(
             type_df = pd.read_csv(paths["type"], index_col=0)
             coords_df = pd.merge(coord_df, type_df).reset_index(drop=True)
 
-            cell_to_idx_dict = dict(
-                zip(coord_df["CELL_ID"], [j + s for j in range(coord_df.shape[0])])
-            )
+            # Filter first and then assign contiguous indices within the fold.
+            D = D[D.sum(axis=1) >= 10].copy()
+            retained_ids = [cell_id for _, cell_id in D.index]
+            cell_to_idx_dict = {
+                cell_id: s + j for j, cell_id in enumerate(retained_ids)
+            }
 
+            edge_df = edge_df[
+                edge_df["src"].isin(retained_ids) & edge_df["tgt"].isin(retained_ids)
+            ].copy()
             edge_df["src"] = edge_df["src"].map(cell_to_idx_dict)
             edge_df["tgt"] = edge_df["tgt"].map(cell_to_idx_dict)
-            coords_df["CELL_ID"] = coords_df["CELL_ID"].map(cell_to_idx_dict)
-            new_index = [(x, cell_to_idx_dict[y]) for x, y in D.index]
-            D.index = new_index
 
-            # keep rows with sufficient counts
-            D = D[D.sum(axis=1) >= 10]
-            idx = [y for x, y in D.index]
-            edge_df = edge_df[(edge_df["src"].isin(idx)) & (edge_df["tgt"].isin(idx))]
-            coords_df = coords_df[coords_df["CELL_ID"].isin(idx)]
+            coords_df = (
+                coords_df.set_index("CELL_ID").loc[retained_ids].reset_index()
+            )
+            coords_df["CELL_ID"] = coords_df["CELL_ID"].map(cell_to_idx_dict)
+            D.index = [
+                (sample_id, cell_to_idx_dict[cell_id])
+                for sample_id, cell_id in D.index
+            ]
 
             D_fold = pd.concat([D_fold, D], axis=0, ignore_index=False)
             edge_fold = pd.concat([edge_fold, edge_df], axis=0, ignore_index=True)
             coords_fold = pd.concat([coords_fold, coords_df], axis=0, ignore_index=True)
+            s += D.shape[0]
             del D, edge_df, coords_df
             gc.collect()
 
@@ -306,6 +312,12 @@ def parse_args() -> argparse.Namespace:
         help="Number of folds to split regions into. Default: 5",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=50,
+        help="Random seed for the region-fold split. Default: 50",
+    )
+    parser.add_argument(
         "--data-dir",
         type=Path,
         default=Path("data/stanford-crc"),
@@ -333,6 +345,7 @@ def main() -> None:
     # Rank 0: prepare data folds and scatter tasks
     # ------------------------------------------------------------------
     if rank == 0:
+        np.random.seed(args.seed)
         print("[MPI] Preparing data folds...")
         root_path = args.data_dir
         dataset_root = root_path / "output" / "output_3hop"
@@ -383,7 +396,7 @@ def main() -> None:
     print(f"[MPI] Rank {rank} starting computation on {len(tasks)} folds...")
     for D_fold, X, edge_df, weights, N in tasks:
         # GpLSI
-        model_gplsi = gplsi_mod.GpLSI_(
+        model_gplsi = gplsi_mod.GpLSI(
             lamb_start=args.lamb_start,
             step_size=args.step_size,
             grid_len=args.grid_len,
@@ -393,7 +406,7 @@ def main() -> None:
         local_As_gplsi.append(model_gplsi.A_hat)
 
         # pLSI
-        model_plsi = gplsi_mod.GpLSI_(method="pLSI")
+        model_plsi = gplsi_mod.GpLSI(method="pLSI")
         model_plsi.fit(X, N, K, edge_df, weights)
         local_As_plsi.append(model_plsi.A_hat)
 

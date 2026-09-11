@@ -93,7 +93,10 @@ def maybe_run_topicscore(D: np.ndarray, K: int):
         Matrix = rpackages.importr("Matrix")
 
         r = robjects.r
-        r["source"]("topicscore.R")
+        topicscore_path = REPO_ROOT / "utils" / "topicscore.r"
+        if not topicscore_path.exists():
+            raise FileNotFoundError(f"TopicScore source not found: {topicscore_path}")
+        r["source"](str(topicscore_path))
 
         start_time = time.time()
         Mquantile = 0
@@ -293,6 +296,22 @@ def run_single_sim(cfg: SimulationConfig, run_topicscore: bool = False) -> Tuple
                 results["A_ts_l1_err"].append(err_acc_ts[3])
                 results["ts_acc"].append(err_acc_ts[4])
                 results["ts_time"].append(time_ts)
+                results["ts_status"].append("ok")
+            else:
+                # TopicScore's ARPACK backend can fail for an individual
+                # high-dimensional draw.  Keep the other four fitted methods
+                # and preserve one output row per registered trial instead of
+                # making the entire Slurm task fail during DataFrame assembly.
+                for key in (
+                    "ts_err",
+                    "ts_l1_err",
+                    "A_ts_err",
+                    "A_ts_l1_err",
+                    "ts_acc",
+                    "ts_time",
+                ):
+                    results[key].append(np.nan)
+                results["ts_status"].append("r_arpack_failure")
 
         # ------------------------------------------------------------------
         # Store metrics

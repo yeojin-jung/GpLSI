@@ -24,6 +24,13 @@ def graphSVD(
     eps: float,
     verbose: int,
     initialize: bool,
+    initialization: str = "current",
+    debias_correction: np.ndarray | None = None,
+    return_metadata: bool = False,
+    random_state: int | None = None,
+    nfolds: int = 5,
+    cv_fold_mode: str = "legacy_first_three",
+    n_jobs: int = 3,
 ):
     """
     Graph-aligned SVD (graphSVD) for GpLSI.
@@ -166,7 +173,14 @@ def graphSVD(
       measure the change in P_U X P_V, where P_U and P_V are projection matrices.
     """
     n = X.shape[0]
-    _, folds, G, _ = get_folds_disconnected_G(edge_df)
+    rng = None if random_state is None else np.random.default_rng(random_state)
+    _, folds, G, _ = get_folds_disconnected_G(edge_df, nfolds=nfolds, rng=rng)
+    nonempty_folds = {key: value for key, value in folds.items() if value}
+    if len(nonempty_folds) < 2:
+        raise ValueError(
+            "graph cross-validation requires at least two nonempty folds; "
+            f"observed {len(nonempty_folds)}"
+        )
 
     lambd_grid = (lamb_start * np.power(step_size, np.arange(grid_len))).tolist()
     lambd_grid.insert(0, 1e-06)
@@ -174,30 +188,65 @@ def graphSVD(
     lambd_grid_init = (0.0001 * np.power(1.5, np.arange(10))).tolist()
     lambd_grid_init.insert(0, 1e-06)
 
-    if initialize:
+    if initialize and initialization == "current":
         print('Initializing...')
         colsums = np.sum(X, axis=0)
         cov = X.T @ X - np.diag(colsums/N)
-        U, L, V  =svds(cov, k=K)
+        U, L, V = _svds(cov, K, rng)
         V  = V.T
         L = np.diag(L)
         V_init = V
         L_init = L
-        U, _, _ = svds(X, k=K)
+        U, _, _ = _svds(X, K, rng)
         U_init = U
-    else:
-        U, L, V = svds(X, k=K)
+    elif initialize and initialization in {
+        "weighted_debiased",
+        "weighted_debiased_mean_N_approx",
+    }:
+        print('Initializing with weighted diagonal debiasing...')
+        if debias_correction is None:
+            raise ValueError(
+                f"initialization={initialization!r} requires debias_correction"
+            )
+        correction = np.asarray(debias_correction, dtype=float)
+        if correction.shape != (X.shape[1],):
+            raise ValueError(
+                "debias_correction must have one entry per transformed feature"
+            )
+        cov = X.T @ X - np.diag(correction)
+        U, L, V = _svds(cov, K, rng)
+        V = V.T
+        L = np.diag(L)
+        V_init = V
+        L_init = L
+        U, _, _ = _svds(X, K, rng)
+        U_init = U
+    elif initialization == "direct_svd" or not initialize:
+        U, L, V = _svds(X, K, rng)
         V  = V.T
         L = np.diag(L)
         U_init = None
         V_init = None
         L_init = None
+    else:
+        raise ValueError(f"unknown initialization mode: {initialization!r}")
 
     score = 1
     niter = 0
+    score_history = []
+    lambd_history = []
+    cv_history = []
+    U_bar_history = []
+    U_hat_history = []
+    V_hat_history = []
+    singular_value_history = []
     while score > eps and niter < maxiter:
         if n > 1000:
-            idx = np.random.choice(range(n),1000,replace=False)
+            idx = (
+                np.random.choice(range(n), 1000, replace=False)
+                if rng is None
+                else rng.choice(n, 1000, replace=False)
+            )
         else:
             idx = range(n)
         
@@ -205,20 +254,84 @@ def graphSVD(
         P_U_old = np.dot(U_samp, U_samp.T)
         P_V_old = np.dot(V, V.T)
         X_hat_old = (P_U_old @ X[idx,:]) @ P_V_old
-        U, lambd, lambd_errs = update_U_tilde(X, V, L, G, weights, folds, lambd_grid)
+        if return_metadata:
+            U, lambd, lambd_errs, U_bar = update_U_tilde(
+                X, V, L, G, weights, nonempty_folds, lambd_grid,
+                return_unorthogonalized=True,
+                cv_fold_mode=cv_fold_mode,
+                n_jobs=n_jobs,
+            )
+            U_bar_history.append(U_bar.copy())
+        else:
+            U, lambd, lambd_errs = update_U_tilde(
+                X, V, L, G, weights, nonempty_folds, lambd_grid,
+                cv_fold_mode=cv_fold_mode,
+                n_jobs=n_jobs,
+            )
         V, L = update_V_L_tilde(X, U)
+        if return_metadata:
+            U_hat_history.append(U.copy())
+            V_hat_history.append(V.copy())
+            singular_value_history.append(np.diag(L).copy())
 
         P_U = np.dot(U[idx,:], U[idx,:].T)
         P_V = np.dot(V, V.T)
         X_hat = (P_U @ X[idx,:]) @ P_V
         score = norm(X_hat-X_hat_old)/n
+        score_history.append(float(score))
+        lambd_history.append(float(lambd))
+        cv_history.append(lambd_errs)
         niter += 1
         if verbose == 1:
             print(f"Error is {score}")
     
     print(f"Graph-aligned SVD ran for {niter} steps.")
 
-    return U, V, L, U_init, V_init, L_init, lambd, lambd_errs, niter
+    output = (U, V, L, U_init, V_init, L_init, lambd, lambd_errs, niter)
+    if not return_metadata:
+        return output
+    metadata = {
+        "U_bar_history": U_bar_history,
+        "U_bar": U_bar_history[-1] if U_bar_history else U.copy(),
+        "U_hat_history": U_hat_history,
+        "V_hat_history": V_hat_history,
+        "singular_value_history": singular_value_history,
+        "score_history": score_history,
+        "lambd_history": lambd_history,
+        "cv_history": cv_history,
+        "lambd_grid": lambd_grid,
+        "initialization": initialization,
+        "random_state": random_state,
+        "nfolds_requested": int(nfolds),
+        "nfolds_nonempty": int(len(nonempty_folds)),
+        "cv_fold_mode": cv_fold_mode,
+        "n_jobs": int(n_jobs),
+        "debias_correction": None
+        if debias_correction is None
+        else np.asarray(debias_correction, dtype=float),
+        "objective_convention": (
+            "0.5*||U-XV||_F^2 + gamma*sum_e(weight_e*||(Gamma U)_e||_2); "
+            "GpLSI passes lambda-grid values directly as pycvxcluster gamma"
+        ),
+    }
+    return output + (metadata,)
+
+
+def _svds(matrix, K, rng):
+    """Keep the historical ARPACK call unless an audited seed is supplied."""
+
+    if rng is None:
+        return svds(matrix, k=K)
+    try:
+        # SciPy >=1.15 uses the SPEC-007 ``rng`` keyword.
+        return svds(matrix, k=K, rng=rng)
+    except TypeError as error:
+        if "unexpected keyword argument 'rng'" not in str(error):
+            raise
+        # SciPy <=1.14 exposes the same deterministic ARPACK seed through
+        # ``random_state``. Keep this compatibility path explicit so runtime
+        # provenance records which SciPy implementation was used.
+        return svds(matrix, k=K, random_state=rng)
 
 
 def lambda_search(j, folds, X, V, L, G, weights, lambd_grid):
@@ -257,23 +370,50 @@ def lambda_search(j, folds, X, V, L, G, weights, lambd_grid):
     return j, errs, U_best, lambd_best
 
 
-def update_U_tilde(X, V, L, G, weights, folds, lambd_grid):
+def update_U_tilde(
+    X,
+    V,
+    L,
+    G,
+    weights,
+    folds,
+    lambd_grid,
+    return_unorthogonalized=False,
+    cv_fold_mode="legacy_first_three",
+    n_jobs=3,
+):
     lambds_best = []
     lambd_errs = {"fold_errors": {}, "final_errors": []}
     L_inv = 1/np.diag(L)
     XVL_inv = X @ V
 
-    with Pool(3) as p:
-        results = p.starmap(
-            lambda_search,
-            [(j, folds, X, V, L, G, weights, lambd_grid) for j in folds.keys()],
-        )
+    tasks = [(j, folds, X, V, L, G, weights, lambd_grid) for j in sorted(folds)]
+    if n_jobs == 1:
+        results = [lambda_search(*task) for task in tasks]
+    elif n_jobs > 1:
+        with Pool(n_jobs) as p:
+            results = p.starmap(lambda_search, tasks)
+    else:
+        raise ValueError("n_jobs must be at least 1")
     for result in results:
         j, errs, _, lambd_best = result
         lambd_errs["fold_errors"][j] = errs
         lambds_best.append(lambd_best)
 
-    cv_errs = np.sum([lambd_errs["fold_errors"][i] for i in range(3)], axis=0)
+    fold_ids = sorted(lambd_errs["fold_errors"])
+    if cv_fold_mode == "legacy_first_three":
+        if not all(index in lambd_errs["fold_errors"] for index in range(3)):
+            raise ValueError("legacy_first_three requires nonempty folds 0, 1, and 2")
+        scoring_folds = list(range(3))
+    elif cv_fold_mode == "all":
+        scoring_folds = fold_ids
+    else:
+        raise ValueError(f"unknown cv_fold_mode={cv_fold_mode!r}")
+    cv_errs = np.sum(
+        [lambd_errs["fold_errors"][index] for index in scoring_folds], axis=0
+    )
+    lambd_errs["scoring_folds"] = scoring_folds
+    lambd_errs["summed_cv_errors"] = np.asarray(cv_errs, dtype=float).tolist()
     lambd_cv = lambd_grid[np.argmin(cv_errs)]
 
     ssnal = pycvxcluster.pycvxcluster.SSNAL(gamma=lambd_cv, verbose=0)
@@ -283,6 +423,8 @@ def update_U_tilde(X, V, L, G, weights, folds, lambd_grid):
     U_hat, _, _ = svd(U_tilde, full_matrices=False)
 
     print(f"Optimal lambda is {lambd_cv}...")
+    if return_unorthogonalized:
+        return U_hat, lambd_cv, lambd_errs, U_tilde
     return U_hat, lambd_cv, lambd_errs
 
 

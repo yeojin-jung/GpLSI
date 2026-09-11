@@ -12,21 +12,27 @@ def get_shortest_paths(mst, srn):
     shortest_paths = dict(nx.shortest_path_length(mst, source=srn))
     return shortest_paths
 
-def get_folds(mst):
-    srn = np.random.choice(mst.nodes)
+def get_folds(mst, rng=None):
+    nodes = list(mst.nodes)
+    srn = np.random.choice(nodes) if rng is None else rng.choice(nodes)
     path = get_shortest_paths(mst, srn)
     fold1 = [key for key, value in path.items() if value % 2 == 0]
     fold2 = [key for key, value in path.items() if value % 2 == 1]
     return srn, fold1, fold2
 
-def get_folds_disconnected_G(edge_df, nfolds=5):
+def get_folds_disconnected_G(edge_df, nfolds=5, rng=None):
+    if nfolds < 2:
+        raise ValueError("nfolds must be at least 2")
     G = nx.from_pandas_edgelist(edge_df, "src", "tgt")
     connected_subgraphs = list(nx.connected_components(G))
     folds = {i: [] for i in range(nfolds)}
+    srn = None
+    mst = None
     for graph in connected_subgraphs:
         G_sub = G.subgraph(graph)
         mst = nx.minimum_spanning_tree(G_sub)
-        srn = np.random.choice(mst.nodes)
+        nodes = list(mst.nodes)
+        srn = np.random.choice(nodes) if rng is None else rng.choice(nodes)
         path = get_shortest_paths(mst, srn)
         for node, length in path.items():
             folds[length % nfolds].append(node)
@@ -219,7 +225,7 @@ def normaliza_coords(coords):
 def _euclidean_proj_simplex(v, s=1):
     n = v.shape[0]
     # check if we are already on the simplex
-    if v.sum() == s and np.alltrue(v >= 0):
+    if v.sum() == s and np.all(v >= 0):
         return v
     
     u = np.sort(v)[::-1]

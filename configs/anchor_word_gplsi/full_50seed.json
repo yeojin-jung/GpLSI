@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "stage": "full_50seed",
+  "output_directory": "results/anchor_word_gplsi",
+  "test_fraction": 0.2,
+  "seeds": [1235, 1236, 1237, 1238, 1239, 1240, 1241, 1242, 1243, 1244, 1245, 1246, 1247, 1248, 1249, 1250, 1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258, 1259, 1260, 1261, 1262, 1263, 1264, 1265, 1266, 1267, 1268, 1269, 1270, 1271, 1272, 1273, 1274, 1275, 1276, 1277, 1278, 1279, 1280, 1281, 1282, 1283, 1284],
+  "word_decay_grid": [0.001, 0.01, 0.1, 1.0, 10.0],
+  "base_parameters": {
+    "n": 500,
+    "p": 5000,
+    "N": 300,
+    "K": 5,
+    "alpha_dirichlet": 1.0,
+    "n_anchors": 2,
+    "delta_anchor": 0.01,
+    "offset_zipf": 2.7,
+    "rt": 0.05,
+    "n_clusters": 30,
+    "nearest_n": 5,
+    "phi": 0.1
+  },
+  "designs": [
+    {"design_variant": "tran_mixed_word_decay_exact", "experiment_family": "exact_Tran_no_graph_no_anchor_stress", "n_anchors": 0},
+    {"design_variant": "tran_mixed_word_decay_graph_adapted", "experiment_family": "Tran_A_decay_anchor_plus_GpLSI_graph_W", "n_anchors": 2}
+  ],
+  "graphSVD": {"lamb_start": 0.0001, "step_size": 1.25, "grid_len": 29, "maxiter": 50, "eps": 1e-5, "verbose": 0},
+  "preprocessing_variants": [
+    {"order": 0, "name": "P0_raw", "threshold_method": "none", "weight_method": "none", "initialization": "current"},
+    {"order": 1, "name": "P1_threshold", "threshold_method": "tran_script_exact", "alpha": 0.005, "weight_method": "none", "initialization": "current"},
+    {"order": 2, "name": "P2_weight", "threshold_method": "none", "weight_method": "ke_empirical", "tau": 0.0, "initialization": "weighted_debiased"},
+    {"order": 3, "name": "P3_threshold_weight", "threshold_method": "tran_script_exact", "alpha": 0.005, "weight_method": "ke_empirical", "tau": 0.0, "initialization": "weighted_debiased"}
+  ],
+  "vertex_hunters": [
+    {"method": "spa_current", "parameters": {"precondition": false}},
+    {"method": "svs", "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "svs_star", "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "pp_spa", "parameters": {"radius_divisor": 20.0, "m_neighbors": 4, "min_neighbors": 3}}
+  ],
+  "recovery": {"A_recovery_methods": ["current", "poisson_full"], "condition_threshold": 1000000000000.0, "poisson_epsilon": 1e-12, "poisson_max_iter": 2000, "poisson_tolerance": 1e-8},
+  "baselines": ["spatial_lda", "topicscore_raw", "topicscore_graph_denoised", "lda"],
+  "spatial_lda_parameters": {"n_parallel_processes": 1}
+}
