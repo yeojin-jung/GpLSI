@@ -21,6 +21,7 @@ from .recovery import (
     project_rows_simplex,
     recover_W,
     refit_A_current,
+    refit_A_full_l2,
     refit_A_full_poisson,
 )
 from .topicscore import TopicScoreResult, fit_topicscore_graph_denoised
@@ -347,11 +348,21 @@ def recover_A_for_geometry(
     poisson_counts: PreparedPoissonCounts | None = None,
     poisson_initial_A: np.ndarray | None = None,
 ) -> tuple[ARecoveryResult, float]:
-    """Apply A-current or full-count Poisson A to the identical recovered W."""
+    """Apply A-current, simplex least-squares, or Poisson A to the same W."""
 
     started = perf_counter()
     if method == "A_current":
         result = refit_A_current(geometry_fit.W_hat, bundle.frequencies)
+    elif method == "A_full_L2":
+        # Same warm start as the Poisson refit, so the two full-vocabulary
+        # estimators differ only in their loss.
+        result = refit_A_full_l2(
+            geometry_fit.W_hat,
+            bundle.frequencies,
+            initial_A=poisson_initial_A,
+            max_iter=poisson_max_iter,
+            tolerance=poisson_tolerance,
+        )
     elif method == "A_full_Pois":
         # Use the exact paired historical estimate as a deterministic warm
         # start.  The Poisson routine interiorizes it once so EM can reopen
@@ -380,7 +391,7 @@ def recover_A_for_geometry(
         if warm_start_warning is not None:
             result.warnings.append(warm_start_warning)
     else:
-        raise ValueError("A recovery must be 'A_current' or 'A_full_Pois'")
+        raise ValueError("A recovery must be 'A_current', 'A_full_L2', or 'A_full_Pois'")
     return result, perf_counter() - started
 
 

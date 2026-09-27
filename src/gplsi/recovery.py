@@ -85,7 +85,28 @@ def project_simplex(vector: np.ndarray, total: float = 1.0) -> np.ndarray:
 
 
 def project_rows_simplex(matrix: np.ndarray) -> np.ndarray:
-    return np.vstack([project_simplex(row) for row in np.asarray(matrix, dtype=float)])
+    """Row-wise :func:`project_simplex` (unit total), vectorized over rows."""
+
+    values = np.asarray(matrix, dtype=float)
+    if values.ndim != 2 or values.shape[1] == 0 or not np.isfinite(values).all():
+        return np.vstack([project_simplex(row) for row in values])
+    n, p = values.shape
+    input_sum = values.sum(axis=1)
+    exact_tolerance = 10.0 * np.finfo(float).eps
+    exact = np.all(values >= 0, axis=1) & (np.abs(input_sum - 1.0) <= exact_tolerance)
+    ordered = -np.sort(-values, axis=1)
+    cumulative = np.cumsum(ordered, axis=1) - 1.0
+    positive = ordered - cumulative / np.arange(1, p + 1) > 0
+    has_support = positive.any(axis=1)
+    rho = p - 1 - np.argmax(positive[:, ::-1], axis=1)
+    theta = cumulative[np.arange(n), rho] / (rho + 1.0)
+    projected = np.maximum(values - theta[:, None], 0.0)
+    projected_sum = projected.sum(axis=1)
+    usable = has_support & (projected_sum > np.finfo(float).eps)
+    out = np.full_like(values, 1.0 / p)
+    out[usable] = projected[usable] * (1.0 / projected_sum[usable])[:, None]
+    out[exact] = values[exact] * (1.0 / input_sum[exact])[:, None]
+    return out
 
 
 def recover_W(
@@ -237,16 +258,20 @@ def refit_A_full_l2(
     if lipschitz <= np.finfo(float).eps:
         raise RecoveryError("W has zero spectral norm")
     step = 1.0 / lipschitz
+    # Sufficient statistics: the gradient and objective depend on X only through
+    # W^T W, W^T X, and ||X||^2, so each iteration costs O(K^2 p) instead of O(nKp).
+    gram = W.T @ W
+    cross = W.T @ X
+    x_norm = float(np.sum(X**2))
 
     def objective(value: np.ndarray) -> float:
-        residual = W @ value - X
-        return float(np.sum(residual**2))
+        return float(x_norm - 2.0 * np.sum(value * cross) + np.sum(value * (gram @ value)))
 
     history = [objective(A)]
     converged = False
     gradient_norm = np.nan
     for iteration in range(1, max_iter + 1):
-        gradient = 2.0 * W.T @ (W @ A - X)
+        gradient = 2.0 * (gram @ A - cross)
         gradient_norm = float(np.linalg.norm(gradient))
         candidate = project_rows_simplex(A - step * gradient)
         candidate_objective = objective(candidate)
