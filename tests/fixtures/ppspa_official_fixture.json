@@ -1,0 +1,13 @@
+{
+  "K": 3,
+  "N_sample": 60,
+  "d": 2,
+  "epsilon": 0.07071067811865472,
+  "official_min_neighbors_t": 3,
+  "official_neighbor_cap_N": 4,
+  "pure_nodes": 3,
+  "radius_divisor_M": 20,
+  "seed": 4242,
+  "source_commit": "e3826fca5ee08916e36ae936d6fbe791a2126c18",
+  "source_loading_note": "stubbed two unused imports from absent utils.py"
+}

@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 
-from .utils import get_component_mapping, tuple_converter, _euclidean_proj_simplex
+from gplsi.utils import get_component_mapping, tuple_converter, _euclidean_proj_simplex
 
 import cvxpy as cp
 
@@ -289,9 +289,20 @@ def main() -> None:
     matrices_A_lda: List[np.ndarray] = []
     matrices_W_lda: List[np.ndarray] = []
 
-    # we assume the first column of D_all is CELL_ID
-    row_sums = D_all.iloc[:, 1:9].sum(axis=1)
-    X = D_all.iloc[:, 1:9].div(row_sums, axis=0)
+    # The rerun preserves the string-valued region identifier in ``filename``
+    # for survival analysis.  Select the eight numeric count columns by type
+    # rather than by position so that identifier columns never enter the sum.
+    feature_cols = [
+        column
+        for column in D_all.select_dtypes(include=[np.number]).columns
+        if not str(column).startswith("Unnamed:")
+    ]
+    if len(feature_cols) != 8:
+        raise ValueError(
+            f"Expected 8 numeric CRC count columns, found {len(feature_cols)}: {feature_cols}"
+        )
+    row_sums = D_all[feature_cols].sum(axis=1)
+    X = D_all[feature_cols].div(row_sums, axis=0)
     print(f"[CRC postprocess] X shape: {X.shape}")
 
     for i in range(ntopics):
@@ -420,14 +431,17 @@ def main() -> None:
         coords_all_["topics_gplsi"] = topics_gplsi.idxmax(axis=1)
         coords_all_["topics_plsi"] = topics_plsi.idxmax(axis=1)
         coords_all_["topics_lda"] = topics_lda.idxmax(axis=1)
-        coords_all_["CELL_TYPE"] = coords_all_["CELL_TYPE"].replace(
+        cell_type_col = "CELL_TYPE" if "CELL_TYPE" in coords_all_ else "CELL_TyPE"
+        coords_all_[cell_type_col] = coords_all_[cell_type_col].replace(
             "Tumor 2 (Ki67 Proliferating)",
             "Tumor 2",
         )
-        coords_all_["CELL_TYPE"] = coords_all_["CELL_TYPE"].replace(
+        coords_all_[cell_type_col] = coords_all_[cell_type_col].replace(
             "Tumor 6 / DC",
             "Tumor 6",
         )
+        if cell_type_col != "CELL_TYPE":
+            coords_all_.rename(columns={cell_type_col: "CELL_TYPE"}, inplace=True)
 
         # region IDs from D_all
         patient_id = D_all["filename"].unique()

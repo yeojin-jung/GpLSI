@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "stage": "pilot_12seed",
+  "output_directory": "results/anchor_word_gplsi",
+  "test_fraction": 0.2,
+  "seeds": [5201, 5202, 5203, 5204, 5205, 5206, 5207, 5208, 5209, 5210, 5211, 5212],
+  "word_decay_grid": [0.001, 0.01, 0.1, 1.0, 10.0],
+  "base_parameters": {
+    "n": 60,
+    "p": 180,
+    "N": 100,
+    "K": 3,
+    "alpha_dirichlet": 1.0,
+    "n_anchors": 2,
+    "delta_anchor": 0.01,
+    "offset_zipf": 2.7,
+    "rt": 0.05,
+    "n_clusters": 6,
+    "nearest_n": 3,
+    "phi": 0.1
+  },
+  "designs": [
+    {
+      "design_variant": "tran_mixed_word_decay_exact",
+      "experiment_family": "exact_Tran_no_graph_no_anchor_stress",
+      "n_anchors": 0
+    },
+    {
+      "design_variant": "tran_mixed_word_decay_graph_adapted",
+      "experiment_family": "Tran_A_decay_anchor_plus_GpLSI_graph_W",
+      "n_anchors": 2
+    }
+  ],
+  "graphSVD": {
+    "lamb_start": 0.0001,
+    "step_size": 1.25,
+    "grid_len": 2,
+    "maxiter": 2,
+    "eps": 1e-5,
+    "verbose": 0
+  },
+  "preprocessing_variants": [
+    {"order": 0, "name": "P0_raw", "threshold_method": "none", "weight_method": "none", "initialization": "current"},
+    {"order": 1, "name": "P1_threshold", "threshold_method": "tran_script_exact", "alpha": 0.005, "weight_method": "none", "initialization": "current"},
+    {"order": 2, "name": "P2_weight", "threshold_method": "none", "weight_method": "ke_empirical", "tau": 0.0, "initialization": "weighted_debiased"},
+    {"order": 3, "name": "P3_threshold_weight", "threshold_method": "tran_script_exact", "alpha": 0.005, "weight_method": "ke_empirical", "tau": 0.0, "initialization": "weighted_debiased"}
+  ],
+  "vertex_hunters": [
+    {"method": "spa_current", "parameters": {"precondition": false}},
+    {"method": "svs", "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "svs_star", "parameters": {"L_mode": "mixedscore_adaptive", "max_simplexes": 100000}},
+    {"method": "pp_spa", "parameters": {"radius_divisor": 20.0, "m_neighbors": 4, "min_neighbors": 3}}
+  ],
+  "recovery": {
+    "A_recovery_methods": ["current", "poisson_full"],
+    "condition_threshold": 1000000000000.0,
+    "poisson_epsilon": 1e-12,
+    "poisson_max_iter": 1000,
+    "poisson_tolerance": 1e-8
+  },
+  "baselines": ["spatial_lda", "topicscore_raw", "topicscore_graph_denoised", "lda"],
+  "spatial_lda_parameters": {"n_parallel_processes": 1}
+}

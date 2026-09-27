@@ -8,6 +8,7 @@ This package provides:
 - utility functions for aligning and evaluating topics
 """
 
+from importlib import import_module
 from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("gplsi")
@@ -15,27 +16,17 @@ except PackageNotFoundError:
     __version__ = "0.0.0"
 
 
-# Core model ---------------------------------------------------------------------
+# Keep package import lightweight. Experiment helpers should be imported from
+# their own modules so optional R/MPI dependencies are not required just to use
+# the core estimator.
 from .gplsi import GpLSI
-
-# Experiments ---------------------------------------------------------------------
-from .simulation import run_simulation, run_simulation_grid, SimulationConfig
-from .realdata_spleen import run_spleen_analysis
-from .realdata_crc import run_crc_analysis, choose_crc_ntopics
-from .realdata_cook import run_cook_analysis, choose_cook_ntopics
-
-# Simulation helpers -------------------------------------------------------------
+from .anchor_word import build_word_profile, recover_W_from_word_vertices
+from .estimators import ExperimentalEstimate
+from .preprocessing import preprocess_features
+from .vertex_hunting import vertex_hunt
+from .real_data import RealDataBundle, load_real_data
 from .generate_topic_model import generate_data, generate_weights_edge
-
-
-# Graph-related SVD helpers ------------------------------------------------------
-try:
-    from .graphSVD import graphSVD
-except ImportError:
-    graphSVD = None
-
-
-# Utility functions --------------------------------------------------------------
+from .graphSVD import graphSVD
 from .utils import (
     _euclidean_proj_simplex,
     get_component_mapping,
@@ -43,11 +34,32 @@ from .utils import (
     get_l1_err,
     get_accuracy,
     moran,
-    get_PAS
+    get_PAS,
 )
 
 
-# Public API ---------------------------------------------------------------------
+# Preserve the original experiment entry points without loading their optional
+# R/MPI dependencies when importing the estimator package.
+_LAZY_EXPORTS = {
+    "run_simulation_grid": "simulation",
+    "SimulationConfig": "simulation",
+    "run_spleen_analysis": "realdata_spleen",
+    "run_crc_analysis": "realdata_crc",
+    "run_cook_analysis": "realdata_cook",
+}
+
+
+def __getattr__(name):
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f".{_LAZY_EXPORTS[name]}", __name__), name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_LAZY_EXPORTS))
+
 __all__ = [
     "__version__",
     "GpLSI",
@@ -59,6 +71,13 @@ __all__ = [
     "get_F_err",
     "get_l1_err",
     "get_accuracy",
-    "moran"
-    "get_PAS"
+    "moran",
+    "get_PAS",
+    "build_word_profile",
+    "recover_W_from_word_vertices",
+    "ExperimentalEstimate",
+    "preprocess_features",
+    "vertex_hunt",
+    "RealDataBundle",
+    "load_real_data",
 ]

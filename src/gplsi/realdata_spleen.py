@@ -183,11 +183,11 @@ def run_spleen_analysis(
 
     r = robjects.r
 
-    topicscore_path = REPO_ROOT / "utils" / "topicscore.R"
+    topicscore_path = REPO_ROOT / "utils" / "topicscore.r"
     if not topicscore_path.exists():
         raise FileNotFoundError(
-            f"topicscore.R not found at {topicscore_path}. "
-            "Make sure the external TopicScore code is in utils/topicscore.R."
+            f"topicscore.r not found at {topicscore_path}. "
+            "Make sure the external TopicScore code is in utils/topicscore.r."
         )
 
     r["source"](str(topicscore_path))
@@ -213,7 +213,7 @@ def run_spleen_analysis(
 
     # ----------------------- GpLSI -------------------------------------
     start_time = time.time()
-    model_gplsi = gplsi.GpLSI_(
+    model_gplsi = gplsi.GpLSI(
         lamb_start=lamb_start,
         step_size=step_size,
         grid_len=grid_len,
@@ -224,7 +224,7 @@ def run_spleen_analysis(
 
     # ----------------------- pLSI --------------------------------------
     start_time = time.time()
-    model_plsi = gplsi.GpLSI_(method="pLSI")
+    model_plsi = gplsi.GpLSI(method="pLSI")
     model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
 

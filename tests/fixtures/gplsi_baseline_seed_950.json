@@ -1,0 +1,39 @@
+{
+  "config": {
+    "K": 3,
+    "N": 40,
+    "eps": 1e-05,
+    "grid_len": 3,
+    "initialize": true,
+    "lamb_start": 0.0001,
+    "maxiter": 3,
+    "n": 36,
+    "n_clusters": 6,
+    "nearest_n": 3,
+    "p": 18,
+    "phi": 0.1,
+    "precondition": false,
+    "rt": 0.05,
+    "seed": 950,
+    "step_size": 1.25
+  },
+  "metrics": {
+    "A_frobenius_error": 0.19371054215567796,
+    "A_l1_error": 1.0030981266008208,
+    "W_frobenius_error": 1.8449973387443153,
+    "W_l1_error": 14.508680853719774,
+    "iterations": 3,
+    "reconstruction_frobenius": 0.8186836406791591,
+    "runtime_seconds": 5.541890958000295,
+    "selected_rho": 1e-06
+  },
+  "provenance": {
+    "comparison_atol": 1e-08,
+    "comparison_rtol": 1e-07,
+    "numpy": "2.3.5",
+    "python": "3.13.11",
+    "scipy": "1.17.0",
+    "sklearn": "1.8.0",
+    "source_state": "pre-vertex-hunting-weighting-refactor"
+  }
+}

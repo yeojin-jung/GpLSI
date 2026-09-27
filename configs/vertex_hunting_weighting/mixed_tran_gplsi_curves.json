@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "stage": "mixed_tran_gplsi_curve_screen",
+  "output_directory": "results/vertex_hunting_weighting/mixed_tran_gplsi_curves",
+  "figure_directory": "figures/vertex_hunting_weighting/mixed_tran_gplsi_curves",
+  "condition_threshold": 1000000000000.0,
+  "graphSVD": {
+    "lamb_start": 0.0001,
+    "step_size": 1.25,
+    "grid_len": 2,
+    "maxiter": 2,
+    "eps": 1e-5,
+    "verbose": 0
+  },
+  "dataset_design_grids": [
+    {
+      "base_parameters": {
+        "seeds": [3100, 3101, 3102],
+        "N": 100,
+        "n": 60,
+        "p": 250,
+        "K": 3,
+        "alpha_dirichlet": 1.0,
+        "n_anchors": 2,
+        "delta_anchor": 0.01,
+        "a_zipf": 1.0,
+        "offset_zipf": 2.7,
+        "rt": 0.05,
+        "n_clusters": 6,
+        "nearest_n": 3,
+        "phi": 0.1
+      },
+      "families": [
+        {
+          "name_prefix": "tran_no_graph",
+          "experiment_family": "tran_exact_no_graph_benchmark",
+          "generator": "tran_source_exact",
+          "graph_setting": "ordinary_pLSI_no_graph"
+        },
+        {
+          "name_prefix": "mixed_graph",
+          "experiment_family": "tran_A_gplsi_graph_W",
+          "generator": "tran_A_gplsi_W",
+          "graph_setting": "current_gplsi_graph_W"
+        }
+      ],
+      "vary": {
+        "p": [100, 250, 500, 1000],
+        "N": [50, 100, 250, 500],
+        "n": [30, 60, 120, 240],
+        "a_zipf": [0.25, 0.5, 1.0, 2.0]
+      }
+    }
+  ],
+  "preprocessing_variants": [
+    {
+      "order": 0,
+      "name": "P0",
+      "threshold_method": "none",
+      "weight_method": "none",
+      "initialization": "current"
+    },
+    {
+      "order": 1,
+      "name": "P1",
+      "threshold_method": "tran",
+      "alpha": 0.005,
+      "weight_method": "none",
+      "initialization": "current"
+    },
+    {
+      "order": 2,
+      "name": "P2",
+      "threshold_method": "none",
+      "weight_method": "ke_empirical",
+      "tau": 0.0,
+      "weight_common_scale": "none",
+      "initialization": "weighted_debiased"
+    },
+    {
+      "order": 3,
+      "name": "P3",
+      "threshold_method": "tran",
+      "alpha": 0.005,
+      "weight_method": "ke_empirical",
+      "tau": 0.0,
+      "weight_common_scale": "none",
+      "initialization": "weighted_debiased"
+    }
+  ],
+  "primary_vertex_hunters": [
+    {
+      "method": "spa_current",
+      "embedding_source": "U_hat",
+      "parameters": {"precondition": false}
+    },
+    {
+      "method": "svs_star",
+      "embedding_source": "U_hat",
+      "parameters": {
+        "L_mode": "mixedscore_adaptive",
+        "max_simplexes": 100000
+      }
+    },
+    {
+      "method": "pp_spa",
+      "embedding_source": "U_hat",
+      "parameters": {
+        "radius_divisor": 20.0,
+        "m_neighbors": 4,
+        "min_neighbors": 3
+      }
+    }
+  ]
+}

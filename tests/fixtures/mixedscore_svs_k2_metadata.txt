@@ -1,0 +1,3 @@
+K=2
+objective=2.2500000392647623e-18
+candidate_count=6

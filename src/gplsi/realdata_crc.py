@@ -57,8 +57,9 @@ def preprocess_crc(
         List of node IDs (coord_df index).
     """
     # standardize column names X/Y -> x/y
-    new_columns = [col.replace("X", "x").replace("Y", "y") for col in coord_df.columns]
-    coord_df.columns = new_columns
+    # Rename coordinate axes only.  A blanket character replacement also
+    # corrupts ``CELL_TYPE`` to ``CELL_TyPE``.
+    coord_df.rename(columns={"X": "x", "Y": "y"}, inplace=True)
 
     # map CELL_ID to integer indices 0..n-1
     cell_to_idx_dict = dict(zip(coord_df["CELL_ID"], range(coord_df.shape[0])))
@@ -155,24 +156,27 @@ def run_crc_analysis(
         type_df = pd.read_csv(paths["type"], index_col=0)
         coords_df = pd.merge(coord_df, type_df).reset_index(drop=True)
 
-        # global cell index (offset by total_rows)
-        cell_to_idx_dict = dict(
-            zip(coord_df["CELL_ID"], [i + total_rows for i in range(coord_df.shape[0])])
-        )
+        # Filter first, then give retained cells contiguous global indices. Doing
+        # this in the opposite order creates gaps and duplicate row IDs whenever
+        # low-count rows are removed.
+        gene_cols = D.columns[:-1]
+        D = D[D[gene_cols].sum(axis=1) >= min_count].copy()
+        retained_ids = [cell_id for _, cell_id in D.index]
+        cell_to_idx_dict = {
+            cell_id: total_rows + i for i, cell_id in enumerate(retained_ids)
+        }
 
+        edge_df = edge_df[
+            edge_df["src"].isin(retained_ids) & edge_df["tgt"].isin(retained_ids)
+        ].copy()
         edge_df["src"] = edge_df["src"].map(cell_to_idx_dict)
         edge_df["tgt"] = edge_df["tgt"].map(cell_to_idx_dict)
+
+        coords_df = (
+            coords_df.set_index("CELL_ID").loc[retained_ids].reset_index()
+        )
         coords_df["CELL_ID"] = coords_df["CELL_ID"].map(cell_to_idx_dict)
-        new_index = [(x, cell_to_idx_dict[y]) for x, y in D.index]
-        D.index = new_index
-
-        # filter low-count rows (all gene columns except 'filename')
-        gene_cols = D.columns[:-1]
-        D = D[D[gene_cols].sum(axis=1) >= min_count]
-
-        idx = [y for x, y in D.index]
-        edge_df = edge_df[(edge_df["src"].isin(idx)) & (edge_df["tgt"].isin(idx))]
-        coords_df = coords_df[coords_df["CELL_ID"].isin(idx)]
+        D.index = [(sample_id, cell_to_idx_dict[cell_id]) for sample_id, cell_id in D.index]
 
         D_all = pd.concat([D_all, D], axis=0, ignore_index=False)
         edge_all = pd.concat([edge_all, edge_df], axis=0, ignore_index=True)
@@ -182,6 +186,9 @@ def run_crc_analysis(
 
     print(f"[CRC] D has {total_rows} rows after filtering.")
 
+    # Preserve region membership for downstream survival postprocessing while
+    # fitting all models on the eight count columns only.
+    D_all_with_filename = D_all.copy()
     D_all = D_all.drop(columns=["filename"])
     X, N, edge_df, coord_df, weights, n, nodes = preprocess_crc(
         coords_all,
@@ -197,7 +204,7 @@ def run_crc_analysis(
 
     # ----------------------- GpLSI -------------------------------------
     start_time = time.time()
-    model_gplsi = gplsi.GpLSI_(
+    model_gplsi = gplsi.GpLSI(
         lamb_start=lamb_start,
         step_size=step_size,
         grid_len=grid_len,
@@ -209,7 +216,7 @@ def run_crc_analysis(
 
     # ----------------------- pLSI --------------------------------------
     start_time = time.time()
-    model_plsi = gplsi.GpLSI_(method="pLSI")
+    model_plsi = gplsi.GpLSI(method="pLSI")
     model_plsi.fit(X.values, N, K, edge_df, weights)
     time_plsi = time.time() - start_time
     print(f"[CRC] pLSI done in {time_plsi:.2f} seconds.")
@@ -253,4 +260,4 @@ def run_crc_analysis(
     results["time_plsi"].append(time_plsi)
     results["time_lda"].append(time_lda)
 
-    return results, D_all, coords_all
+    return results, D_all_with_filename, coords_all

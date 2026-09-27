@@ -1,0 +1,5 @@
+seed=2024
+K=3
+selected_L=5
+kmeans_iter_max=100
+kmeans_nstart=100

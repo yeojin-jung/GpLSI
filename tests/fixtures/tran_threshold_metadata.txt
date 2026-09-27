@@ -1,0 +1,9 @@
+source_root=topic-modeling
+alpha=0.5
+N=20
+n=8
+p=10
+threshold=0.059981573902351017
+retained_indices_r=1,2,3,4
+fallback_active=false
+score_thresholded_fraction=0.59999999999999998

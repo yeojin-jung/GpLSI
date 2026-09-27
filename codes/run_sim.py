@@ -71,8 +71,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--run-topicscore",
-        type=bool,
-        default=False,
+        action="store_true",
         help=(
             "Run TopicScore baseline. Default: False"
         ),
