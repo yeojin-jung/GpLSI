@@ -1,6 +1,6 @@
 """Summarize DLPFC ablation results into tables and figures.
 
-    python scripts/visium_dlpfc/summarize.py [--designs core panel lambda_wide]
+    python scripts/visium_dlpfc/summarize.py [--designs core panel lambda_wide lambda_wide_tsgd p2_wide k5_br5595]
 
 Aggregation: seeds are averaged within a section first; sections (one per
 donor in the pre-meeting tier) are then averaged, and per-section values are
@@ -44,6 +44,7 @@ METRICS = {
     "heldout_zero_probability_molecules": "zero_prob_molecules",
     "heldout_poisson_deviance_per_molecule_floored_1e-12": "deviance_floored",
     "reference_panel__heldout_poisson_deviance_per_molecule": "ref500_deviance_per_molecule",
+    "reference_panel__heldout_poisson_deviance_per_molecule_floored_1e-12": "ref500_deviance_floored",
     "reference_panel__heldout_zero_probability_molecules": "ref500_zero_prob_molecules",
     "spatial_topic_moran_mean": "moran_I",
     "spatial_hard_topic_neighbor_agreement": "neighbor_agreement",
@@ -91,6 +92,8 @@ def load_records(designs: list[str]) -> tuple[pd.DataFrame, dict]:
                     retained_feature_count=meta.get("retained_feature_count"),
                     A_converged=A_meta.get("converged"), A_status=A_meta.get("status"),
                     A_iterations=A_meta.get("iterations"),
+                    A_gap=A_meta.get("normalized_optimality_gap"),
+                    W_refit_converged=meta.get("W_refit_converged"),
                     hunter_converged=(meta.get("vertex_hunting") or {}).get("optimizer_converged"),
                     has_fit="metrics" in record,
                     error=meta.get("exception_type", "") + (": " + meta.get("exception", "")[:160] if meta.get("exception") else ""),
@@ -160,7 +163,7 @@ def seed_stability(frame: pd.DataFrame, design: str) -> pd.DataFrame:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--designs", nargs="+", default=["core", "panel", "lambda_wide"])
+    parser.add_argument("--designs", nargs="+", default=["core", "panel", "lambda_wide", "lambda_wide_tsgd", "p2_wide", "k5_br5595"])
     parser.add_argument("--no-stability", action="store_true")
     args = parser.parse_args()
     out = REPO / "results/visium_dlpfc/summary"
@@ -203,16 +206,24 @@ def main() -> None:
         # ---- Axis 3: A recoveries, paired on common support ---------------------
         gp = core[core.family == "gplsi_document"].copy()
         gp["geometry"] = gp.method.str.rsplit("__", n=1).str[0]
-        wide = gp.pivot_table(index=["identity", "section", "geometry"], columns="A_recovery",
-                              values="deviance_per_molecule", aggfunc="first")
-        zero = gp.pivot_table(index=["identity", "section", "geometry"], columns="A_recovery",
-                              values="zero_prob_molecules", aggfunc="first")
+        def paired(value):
+            return gp[gp.has_fit].pivot_table(index=["identity", "section", "geometry"], columns="A_recovery",
+                                              values=value, aggfunc="first")
+
+        wide, floored, zero = paired("deviance_per_molecule"), paired("deviance_floored"), paired("zero_prob_molecules")
         lines = []
         for a, b in [("A_current", "A_full_Pois"), ("A_current", "A_full_L2"), ("A_full_L2", "A_full_Pois")]:
-            if a in wide and b in wide:
-                pair = wide[[a, b]].replace([np.inf, -np.inf], np.nan).dropna()
-                lines.append(f"{b} - {a}: mean deviance/molecule difference {float((pair[b] - pair[a]).mean()):+.4f} "
-                             f"(n={len(pair)} geometries with both finite; {b} better in {float((pair[b] < pair[a]).mean()):.0%})")
+            for label, table in [("deviance/molecule (both finite)", wide), ("floored deviance/molecule", floored),
+                                 ("zero-prob molecules", zero)]:
+                if a in table and b in table:
+                    pair = table[[a, b]].replace([np.inf, -np.inf], np.nan).dropna()
+                    if pair.empty:
+                        lines.append(f"{b} - {a}: {label}: no geometry has both scores")
+                        continue
+                    lines.append(f"{b} - {a}: {label}: mean difference {float((pair[b] - pair[a]).mean()):+.4f}, "
+                                 f"median {float((pair[b] - pair[a]).median()):+.4f} "
+                                 f"(n={len(pair)}; {b} lower in {float((pair[b] < pair[a]).mean()):.0%}, "
+                                 f"tied in {float((pair[b] == pair[a]).mean()):.0%})")
         for a in A_ORDER:
             if a in zero:
                 z = zero[a].dropna()
@@ -220,10 +231,26 @@ def main() -> None:
                              f"median zero-prob molecules {float(z.median()):.0f}")
         conv = gp.groupby("A_recovery").A_converged.apply(lambda s: s.dropna().astype(bool).mean())
         lines.append("A-recovery convergence rate: " + ", ".join(f"{k}={v:.0%}" for k, v in conv.items()))
+        pois = gp[(gp.A_recovery == "A_full_Pois") & gp.has_fit]
+        if not pois.empty:
+            gap = pd.to_numeric(pois.A_gap, errors="coerce").dropna()
+            lines.append(
+                f"A_full_Pois: {int(pois.A_converged.fillna(False).astype(bool).sum())}/{len(pois)} reached the 1e-8 tolerance; "
+                f"the rest are near-converged at the iteration cap with normalized gap "
+                f"median {gap.median():.2e}, max {gap.max():.2e} (n={len(gap)})"
+                if len(gap) else "A_full_Pois: no normalized gap recorded")
+        failed_A = gp[~gp.has_fit].groupby("A_recovery").size()
+        if len(failed_A):
+            lines.append("Failed A recoveries (no fit): " + ", ".join(f"{k}={v}" for k, v in failed_A.items()))
         section("Axis 3 (A recovery): paired contrasts on identical W", "\n".join(lines))
-        deviance = seed_then_section(gp.replace([np.inf, -np.inf], np.nan), ["A_recovery"],
-                                     ["deviance_per_molecule", "deviance_floored", "topic_entropy", "top_gene_exclusivity"])[1]
-        section("Axis 3: prediction / profile metrics by A recovery (finite scores only)", fmt_table(deviance, 4))
+        scored = gp[gp.has_fit].replace([np.inf, -np.inf], np.nan)
+        scored = scored.assign(finite_deviance_share=scored.deviance_per_molecule.notna().astype(float))
+        deviance = seed_then_section(scored, ["A_recovery"],
+                                     ["finite_deviance_share", "deviance_per_molecule", "deviance_floored",
+                                      "zero_prob_molecules", "topic_entropy", "top_gene_exclusivity"])[1]
+        section("Axis 3: prediction / profile metrics by A recovery "
+                "(deviance_per_molecule averages only the finite share, so compare deviance_floored across rows)",
+                fmt_table(deviance, 4))
 
         # ---- Baselines vs GpLSI ---------------------------------------------------
         base = core[core.family == "baseline"]
@@ -232,11 +259,19 @@ def main() -> None:
             base,
             doc[(doc.preprocessing == best[0]) & (doc.hunter == best[1])].assign(method=f"GpLSI best ({best[0]}, {best[1]})"),
             doc[(doc.preprocessing == "P0_raw") & (doc.hunter == "spa_current")].assign(method="GpLSI original (P0, SPA)"),
+            geo[geo.family == "gplsi_anchor"].assign(method="GpLSI anchor (P0, SPA)"),
         ])
         comp = seed_then_section(chosen, ["method"], ["layer_ARI", "layer_NMI", "layer_balanced_acc", "moran_I"])[0]
         comp = comp["layer_ARI"].unstack("section")
         comp["mean"] = comp.mean(axis=1)
         section("GpLSI vs baselines: layer ARI (columns = sections)", fmt_table(comp.sort_values("mean", ascending=False)))
+        refit = base.dropna(subset=["W_refit_converged"])
+        if not refit.empty:
+            flag = refit.groupby("method").W_refit_converged.agg(
+                converged=lambda s: int(s.astype(bool).sum()), records="size")
+            section("Baselines whose W refit did not converge (status still 'ok'; read with care)", flag.to_string())
+        base_dev = seed_then_section(base, ["method"], ["deviance_floored", "zero_prob_molecules"])[1]
+        section("Baselines: floored held-out deviance / molecule and zero-probability molecules", fmt_table(base_dev, 4))
         runtime = core.groupby(["family"]).runtime_seconds.median()
         section("Median runtime per record (s)", fmt_table(runtime, 1))
 
@@ -272,20 +307,29 @@ def main() -> None:
         geo = geometry_rows(panel)
         w = seed_then_section(geo, ["preprocessing", "hunter", "panel_size"], ["layer_ARI", "layer_NMI"])[1]
         section("Axis 2b (panel size): layer ARI/NMI", fmt_table(w["layer_ARI"].unstack("panel_size")))
-        gp = panel[panel.family == "gplsi_document"].replace([np.inf, -np.inf], np.nan)
-        ref = seed_then_section(gp, ["preprocessing", "A_recovery", "panel_size"], ["ref500_deviance_per_molecule"])[1]
-        section("Axis 2b: held-out deviance on the common 500-gene reference panel (lower is better)",
-                fmt_table(ref["ref500_deviance_per_molecule"].unstack("panel_size"), 4))
+        # Floored: the unfloored reference deviance is infinite for most GpLSI fits, so a
+        # finite-only average would compare different subsets of fits across panel sizes.
+        gp = panel[panel.family == "gplsi_document"]
+        ref = seed_then_section(gp, ["preprocessing", "hunter", "A_recovery", "panel_size"], ["ref500_deviance_floored"])[1]
+        ref = ref.groupby(level=["preprocessing", "A_recovery", "panel_size"]).mean()
+        section("Axis 2b: floored held-out deviance on the common 500-gene reference panel (lower is better; mean over hunters)",
+                fmt_table(ref["ref500_deviance_floored"].unstack("panel_size"), 4))
+        zero = seed_then_section(gp, ["preprocessing", "A_recovery", "panel_size"], ["ref500_zero_prob_molecules"])[1]
+        section("Axis 2b: zero-probability held-out molecules on the reference panel",
+                fmt_table(zero["ref500_zero_prob_molecules"].unstack("panel_size"), 1))
         kept = geo.groupby(["preprocessing", "panel_size"]).retained_feature_count.median().unstack("panel_size")
         section("Axis 2b: genes retained by the spectral step", fmt_table(kept, 0))
         base = panel[panel.family == "baseline"]
         if not base.empty:
             b = seed_then_section(base, ["method", "panel_size"], ["layer_ARI"])[1]["layer_ARI"].unstack("panel_size")
             section("Axis 2b: baselines layer ARI by panel size", fmt_table(b))
+            bd = seed_then_section(base, ["method", "panel_size"], ["ref500_deviance_floored"])[1]
+            section("Axis 2b: baselines floored reference-panel deviance by panel size",
+                    fmt_table(bd["ref500_deviance_floored"].unstack("panel_size"), 4))
         fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
         for (pre, hunter), g in w["layer_ARI"].groupby(level=[0, 1]):
             axes[0].plot(g.index.get_level_values("panel_size"), g.values, marker="o", label=f"{pre[:2]} {hunter}")
-        for (pre, a), g in ref["ref500_deviance_per_molecule"].groupby(level=[0, 1]):
+        for (pre, a), g in ref["ref500_deviance_floored"].groupby(level=[0, 1]):
             axes[1].plot(g.index.get_level_values("panel_size"), g.values, marker="o", label=f"{pre[:2]} {a}")
         for ax, label in zip(axes, ["layer ARI", "held-out deviance / molecule (ref. 500 genes)"]):
             ax.set_xscale("log"); ax.set_xlabel("genes in panel (p)"); ax.set_ylabel(label); ax.legend(fontsize=7)
@@ -295,9 +339,67 @@ def main() -> None:
     if not lam.empty:
         geo = geometry_rows(lam)
         compare = pd.concat([geo, geometry_rows(core[core.seed.isin(lam.seed.unique())]).assign(design="core")])
-        compare = compare[compare.hunter.eq("spa_current") & compare.preprocessing.isin(lam.preprocessing.unique())]
+        # Anchor GpLSI is also P0/spa_current; keep only the document geometries lambda_wide reruns.
+        compare = compare[compare.family.eq("gplsi_document") & compare.hunter.eq("spa_current")
+                          & compare.preprocessing.isin(lam.preprocessing.unique())]
         table = compare.groupby(["preprocessing", "design", "section"])[["selected_rho", "layer_ARI", "moran_I"]].mean()
         section("Penalty-grid sensitivity (core grid max ~0.0165 vs wide grid max ~0.75)", fmt_table(table, 4))
+
+    p2w = frame[frame.design == "p2_wide"]
+    if not p2w.empty:
+        compare = pd.concat([geometry_rows(p2w), geometry_rows(core[core.preprocessing.eq("P2_ke_weighted")]).assign(design="core")])
+        compare = compare[compare.family.eq("gplsi_document")]
+        section("P2 on the wide penalty grid (p2_wide) vs core grid: selected penalty",
+                fmt_table(compare.groupby(["design", "section"]).selected_rho.agg(["min", "median", "max"]), 4))
+        w = seed_then_section(compare, ["hunter", "design"], ["layer_ARI"])
+        section("P2 wide vs core grid: layer ARI by hunter (columns = sections)",
+                fmt_table(w[0]["layer_ARI"].unstack("section").assign(mean=w[1]["layer_ARI"])))
+        section("P2 wide vs core grid: W-only metrics, mean over sections",
+                fmt_table(seed_then_section(compare, ["hunter", "design"], W_METRICS)[1]))
+        gp = pd.concat([p2w, core[core.preprocessing.eq("P2_ke_weighted")].assign(design="core")])
+        gp = gp[gp.family.eq("gplsi_document") & gp.has_fit]
+        section("P2 wide vs core grid: prediction by A recovery",
+                fmt_table(seed_then_section(gp, ["A_recovery", "design"], ["deviance_floored", "zero_prob_molecules"])[1], 4))
+
+    k5 = frame[frame.design == "k5_br5595"]
+    if not k5.empty:
+        # K = 7 references on the same section and seeds: core for P0 and baselines, p2_wide
+        # for P2 (core's P2 used the short penalty grid).
+        same = frame.section.isin(k5.section.unique()) & frame.seed.isin(k5.seed.unique())
+        ref = pd.concat([
+            frame[same & frame.design.eq("core") & ~frame.preprocessing.isin(["P1_tran_alpha_0p005", "P2_ke_weighted", "P3_tran_then_ke"])],
+            frame[same & frame.design.eq("p2_wide")],
+        ])
+        both = pd.concat([ref, k5])
+        geo = geometry_rows(both)
+        geo = geo[geo.family.eq("gplsi_document")]
+        w = geo.groupby(["preprocessing", "hunter", "K"])[["layer_ARI", "layer_NMI", "moran_I"]].agg(["mean", "min", "max"])
+        section("K = 5 vs K = 7 on Br5595: GpLSI W-only metrics over seeds (mean, min, max)", fmt_table(w))
+        base = both[both.family.eq("baseline") & both.has_fit]
+        b = base.groupby(["method", "K"])[["layer_ARI", "layer_NMI", "deviance_floored"]].mean()
+        section("K = 5 vs K = 7 on Br5595: baselines (seed mean)", fmt_table(b, 4))
+        gp = both[both.family.eq("gplsi_document") & both.has_fit]
+        d = gp.groupby(["preprocessing", "A_recovery", "K"])[["deviance_floored", "zero_prob_molecules"]].mean()
+        section("K = 5 vs K = 7 on Br5595: GpLSI prediction by A recovery (mean over hunters and seeds)", fmt_table(d, 4))
+        rho = geo.groupby(["preprocessing", "K"]).selected_rho.agg(["min", "median", "max"])
+        section("K = 5 vs K = 7 on Br5595: selected penalty", fmt_table(rho, 4))
+        if not args.no_stability:
+            # Matched JSD averages over K matched pairs, so it is comparable across K only roughly.
+            sections_k5 = set(k5.section)
+            stab = pd.concat([seed_stability(frame, "k5_br5595"), seed_stability(frame[same], "core")])
+            if not stab.empty:
+                stab = stab[stab.section.isin(sections_k5) & ~stab.method.str.contains("P1_tran|P2_ke_weighted|P3_tran_then_ke|A_full_Pois")]
+                section("K = 5 vs K = 7 on Br5595: cross-seed matched JSD (P0 and baselines)",
+                        fmt_table(stab.pivot_table(index="method", columns="K", values="seed_JSD"), 4))
+
+    tsgd = frame[frame.design == "lambda_wide_tsgd"]
+    if not tsgd.empty:
+        rho = frame[frame.method.eq("gplsi_document__P0_raw__spa_current__A_current")].set_index("identity").selected_rho
+        rows = frame[frame.method.eq("topicscore_graph_denoised") & frame.design.isin(["core", "lambda_wide_tsgd"])
+                     & frame.seed.isin(tsgd.seed.unique())].copy()
+        rows["selected_rho"] = rows.identity.map(rho)
+        table = rows.groupby(["design", "section"])[["selected_rho", "layer_ARI", "deviance_floored"]].mean()
+        section("Graph-denoised TopicSCORE: penalty-grid sensitivity (shares the P0 spectral step)", fmt_table(table, 4))
 
     (out / "report.md").write_text("".join(report))
     print("".join(report))

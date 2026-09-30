@@ -23,7 +23,8 @@ dependencies:
   - mpi4py         
 
   # For graph-regularized backend 
-  - scikit-sparse>=0.4.12
+  # scikit-sparse 0.5.0 removed cholesky_AAt, which pycvxcluster.algos.admm imports.
+  - scikit-sparse>=0.4.12,<0.5
   - suitesparse
 
   # For TopicScore / R interface 

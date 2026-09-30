@@ -31,6 +31,33 @@ from gplsi_spatial_benchmark.ablation_runner import prepare_task_data, score_fit
 from gplsi_spatial_benchmark.runner import _json_safe  # noqa: E402
 
 
+RECOVERY_SUFFIXES = ("__A_current", "__A_full_L2")
+
+
+def geometry_sources(results: list[dict], saved_keys) -> list[tuple[str, int | None, int | None]]:
+    """One (geometry, W index, A_current index) per GpLSI geometry, in result order.
+
+    All recoveries of a geometry share one W, so W is taken from the first record that
+    saved it; a failed A_current (e.g. a singular anchor fit) must not block the refit.
+    """
+    saved_keys = set(saved_keys)
+    order, w_index, current_index = [], {}, {}
+    for index, record in enumerate(results):
+        method = record["method"]
+        suffix = next((s for s in RECOVERY_SUFFIXES if method.endswith(s)), None)
+        if not method.startswith("gplsi_") or suffix is None:
+            continue
+        geometry = method[: -len(suffix)]
+        if geometry not in w_index:
+            order.append(geometry)
+            w_index[geometry] = None
+        if w_index[geometry] is None and f"W_{index}" in saved_keys:
+            w_index[geometry] = index
+        if suffix == "__A_current":
+            current_index[geometry] = index
+    return [(g, w_index[g], current_index.get(g)) for g in order]
+
+
 def refit_task(config_path: str, result_json: str) -> str:
     config = json.loads(Path(config_path).read_text())
     settings = config["poisson_refit"]
@@ -48,20 +75,20 @@ def refit_task(config_path: str, result_json: str) -> str:
             saved["feature_ids"].astype(str), prepared["feature_ids"].astype(str)
         ):
             raise ValueError(f"{identity}: rebuilt task data do not match the saved fit")
-        for index, record in enumerate(payload["results"]):
-            method = record["method"]
-            if not method.startswith("gplsi_") or not method.endswith("__A_current"):
-                continue
-            key = f"W_{index}"
-            geometry = method[: -len("__A_current")]
+        for geometry, index, current_index in geometry_sources(payload["results"], saved.keys()):
             started = perf_counter()
             entry = {"method": f"{geometry}__A_full_Pois", "status": "failed", "metadata": {}}
             try:
-                if key not in saved:
+                if index is None:
                     raise ValueError("no saved W for this geometry")
-                W = saved[key].astype(float)
+                record = payload["results"][index]
+                W = saved[f"W_{index}"].astype(float)
                 W /= W.sum(axis=1, keepdims=True)
-                initial = saved[f"A_{index}"].astype(float) if settings["initial"] == "A_current" else None
+                initial = None
+                if settings["initial"] == "A_current":
+                    if current_index is None or f"A_{current_index}" not in saved:
+                        raise ValueError("initial='A_current' but this geometry has no saved A_current")
+                    initial = saved[f"A_{current_index}"].astype(float)
                 result = refit_A_full_poisson(
                     W, counts, bundle.document_lengths, initial_A=initial,
                     max_iter=int(settings["max_iter"]), tolerance=float(settings["tolerance"]),

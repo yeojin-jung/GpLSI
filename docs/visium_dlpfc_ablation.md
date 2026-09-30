@@ -309,7 +309,14 @@ Interpretation:
 * **Dense EM statistics** (BLAS) match the sparse ones to $10^{-16}$ but are only 1.5×
   faster (0.13 vs 0.20 s per iteration), so implementation speed is not the fix.
 
-**No ablation results yet.**
+**Ablation results** (2026-09-27/28): all designs have run on DSI (smoke, core, lambda_wide,
+lambda_wide_tsgd, panel, p2_wide, and the Poisson refits for core, panel and lambda_wide).
+Results, figures and their interpretation are in
+[`visium_dlpfc_results.md`](visium_dlpfc_results.md) (start at its §0 summary); the
+run chronology is in [`visium_dlpfc_session_log.md`](visium_dlpfc_session_log.md).
+Headline numbers: vertex hunting dominates (P0 layer ARI 0.09 with SPA vs 0.24 with
+SVS); thresholding has no effect at any panel size; A_full_Pois > A_full_L2 > A_current
+for held-out deviance in every paired geometry, with no effect on ARI.
 
 ## 10. Code map
 
@@ -360,23 +367,23 @@ figures).
 
 ## 12. Open decisions and plans
 
-Decisions needed:
-1. **Spatial-LDA:** drop it from `core` for now (one line in the config)? Graph KL-NMF
-   and graph-denoised Topic-SCORE remain as graph-aware baselines.
-2. **Poisson settings** for the refit. Proposal: start from pooled frequencies, or
-   `A_current` with interior mass 0.01; about 1,500 iterations; report the achieved gap
-   and label fits "near-converged" instead of requiring $10^{-8}$. Cost: about 6 min per
-   geometry, about 2.5 CPU-hours per core task. Needs Claire's agreement, since it
-   changes how Poisson results are labelled.
+Resolved (2026-09-27):
+1. **Spatial-LDA stays in `core`.** It ran in 5–11 min per task on DSI.
+2. **Poisson refit settings:** pooled start, max_iter 1,500, tolerance $10^{-8}$; fits
+   above the tolerance are labelled "near-converged" with the achieved gap (median
+   $5.7\times10^{-6}$ in core). Actual cost: about 13 CPU-min per geometry.
 
-Then:
-1. Smoke run end to end.
-2. Core, then lambda_wide, then panel runs locally with about 6 workers (estimated
-   15–20 min per core task without Spatial-LDA and Poisson; $p=5{,}000$ tasks slowest).
-3. Poisson refit from the saved $W$, overnight.
-4. `summarize.py` → figures and tables for the meeting.
-5. After the meeting: the extended 360-task grid on Midway; commit on a branch and flag
-   the `recovery.py` speed changes to Claire.
+Done: smoke, core, lambda_wide, panel, Poisson refits and `summarize.py` all ran on
+DSI Slurm (not locally), plus two follow-ups (lambda_wide_tsgd and p2_wide). The full
+test suite passes (306 tests).
+
+Open (see the results doc §7):
+1. The extended 360-task grid (pack with `TASK_STRIDE`; use `grid_len` 50 for P2/P3 and
+   for panels of $p\le 1{,}000$).
+2. Whether to keep the thresholding axis (it is empty at α = 0.005).
+3. A pseudocount option for the Poisson refit (removes the remaining zero-probability
+   molecules).
+4. Commit on `yeojin-exp` when approved, and flag the `recovery.py` speed changes to Claire.
 
 Cautions:
 * Three donors only — sections and seeds are not independent replicates.

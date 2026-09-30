@@ -32,6 +32,9 @@ def main() -> None:
         "tasks_core.csv": grid("core", CORE_SECTIONS, [7], [2000], [1.0], SEEDS[:3]),
         "tasks_panel.csv": grid("panel", CORE_SECTIONS, [7], [500, 1000, 2000, 5000], [1.0], SEEDS[:3]),
         "tasks_lambda_wide.csv": grid("lambda_wide", CORE_SECTIONS, [7], [2000], [1.0], SEEDS[:1]),
+        "tasks_lambda_wide_tsgd.csv": grid("lambda_wide_tsgd", CORE_SECTIONS, [7], [2000], [1.0], SEEDS[:1]),
+        "tasks_p2_wide.csv": grid("p2_wide", CORE_SECTIONS, [7], [2000], [1.0], SEEDS[:3]),
+        "tasks_k5_br5595.csv": grid("k5_br5595", ["151669"], [5], [2000], [1.0], SEEDS[:3]),
         # Post-meeting tier matching the PDF grid (K sweep + count thinning at K=7).
         "tasks_extended.csv": grid("core", ALL_SECTIONS, [5, 7, 9], [2000], [1.0], SEEDS)
         + grid("core", ALL_SECTIONS, [7], [2000], [0.75, 0.5, 0.25], SEEDS),
