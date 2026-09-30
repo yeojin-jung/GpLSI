@@ -141,10 +141,26 @@ def fit_method_suite(
     anchor_vertex_hunters: tuple[str, ...] = ("spa_current",),
     include_spatial_lda: bool = True,
     spectral_parameters: dict | None = None,
+    A_recoveries: tuple[str, ...] = ("A_current", "A_full_Pois"),
+    vertex_parameters: dict[str, dict] | None = None,
+    competitors: tuple[str, ...] | None = None,
+    recovery_parameters: dict | None = None,
 ) -> list[Estimate]:
-    """Fit every declared estimator; failures become explicit result records."""
+    """Fit every declared estimator; failures become explicit result records.
+
+    ``A_recoveries`` are all applied to the identical W of each geometry.
+    ``A_current`` is always computed first when requested, because it is the
+    warm start for the full-vocabulary refits. ``competitors=None`` keeps every
+    non-GpLSI baseline; otherwise only the named ones are fitted.
+    """
 
     results: list[Estimate] = []
+    A_recoveries = tuple(sorted(dict.fromkeys(A_recoveries), key=lambda name: name != "A_current"))
+    vertex_parameters = vertex_parameters or {}
+    recovery_parameters = recovery_parameters or {}
+
+    def wanted(name: str) -> bool:
+        return competitors is None or name in competitors
     prepared_poisson_counts = prepare_poisson_counts(bundle.counts)
     all_preprocessings = tuple(dict.fromkeys(document_preprocessings + anchor_preprocessings))
     first_spectral = None
@@ -162,13 +178,13 @@ def fit_method_suite(
             results.append(_failed(f"gplsi_shared_spectral_block__{preprocessing}", started, exc))
             if preprocessing in document_preprocessings:
                 for hunter in document_vertex_hunters:
-                    for recovery in ("A_current", "A_full_Pois"):
+                    for recovery in A_recoveries:
                         results.append(_failed(
                             f"gplsi_document__{preprocessing}__{hunter}__{recovery}", started, exc
                         ))
             if preprocessing in anchor_preprocessings:
                 for hunter in anchor_vertex_hunters:
-                    for recovery in ("A_current", "A_full_Pois"):
+                    for recovery in A_recoveries:
                         results.append(_failed(
                             f"gplsi_anchor__{preprocessing}__{hunter}__{recovery}", started, exc
                         ))
@@ -183,10 +199,11 @@ def fit_method_suite(
             started = perf_counter()
             try:
                 fitted = fit_geometry(
-                    bundle, spectral, K, geometry=geometry, vertex_hunter=hunter, seed=seed
+                    bundle, spectral, K, geometry=geometry, vertex_hunter=hunter, seed=seed,
+                    vertex_parameters=vertex_parameters.get(hunter),
                 )
                 paired_current_A = None
-                for recovery in ("A_current", "A_full_Pois"):
+                for recovery in A_recoveries:
                     recovery_started = perf_counter()
                     try:
                         recovered, a_runtime = recover_A_for_geometry(
@@ -195,6 +212,7 @@ def fit_method_suite(
                             recovery,
                             poisson_counts=prepared_poisson_counts,
                             poisson_initial_A=paired_current_A,
+                            **recovery_parameters,
                         )
                         if recovery == "A_current":
                             paired_current_A = recovered.A_hat
@@ -221,6 +239,14 @@ def fit_method_suite(
                                     "objective_name": recovered.objective_name,
                                     "diagnostics": recovered.diagnostics,
                                 },
+                                "vertex_hunting": {
+                                    "status": fitted.vertex_result.status,
+                                    "runtime_seconds": fitted.runtimes.get("vertex_hunting"),
+                                    "optimizer_converged": fitted.vertex_result.parameters.get(
+                                        "optimizer_converged"
+                                    ),
+                                },
+                                "retained_feature_count": int(spectral.retained_canonical_indices.size),
                                 "shared_spectral_runtime_seconds": spectral.runtime_seconds,
                             },
                             warnings=spectral.warnings + fitted.warnings + recovered.warnings,
@@ -228,9 +254,9 @@ def fit_method_suite(
                     except Exception as exc:
                         results.append(_failed(f"{geometry_method}__{recovery}", recovery_started, exc))
             except Exception as exc:
-                for recovery in ("A_current", "A_full_Pois"):
+                for recovery in A_recoveries:
                     results.append(_failed(f"{geometry_method}__{recovery}", started, exc))
-    if first_spectral is not None:
+    if first_spectral is not None and wanted("topicscore_graph_denoised"):
         started = perf_counter()
         try:
             fitted = fit_graph_topicscore(bundle, first_spectral)
@@ -251,6 +277,7 @@ def fit_method_suite(
     ]
     if include_spatial_lda:
         independent.append(("spatial_lda", lambda: fit_spatial_lda(bundle.counts, K, coordinates)))
+    independent = [(name, callback) for name, callback in independent if wanted(name)]
     for name, callback in independent:
         started = perf_counter()
         try:

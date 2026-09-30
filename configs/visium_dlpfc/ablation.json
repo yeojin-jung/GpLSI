@@ -1,0 +1,235 @@
+{
+  "dataset": "visium_dlpfc",
+  "processed_file": "data/processed/visium_dlpfc/visium_dlpfc.h5ad",
+  "output_root": "results/visium_dlpfc",
+  "heldout_test_fraction": 0.2,
+  "graph": {
+    "k": 6
+  },
+  "panel": {
+    "detection_fraction": 0.01,
+    "reference_size": 500
+  },
+  "spectral_initialization": "current",
+  "spectral": {
+    "lamb_start": 0.0001,
+    "step_size": 1.2,
+    "grid_len": 29,
+    "maxiter": 50,
+    "eps": 1e-05,
+    "nfolds": 5,
+    "n_jobs": 1
+  },
+  "recovery": {
+    "poisson_max_iter": 2000,
+    "poisson_tolerance": 1e-08
+  },
+  "vertex_parameters": {},
+  "designs": {
+    "core": {
+      "description": "Full factorial on the 2,000-gene panel: 4 preprocessings x 6 hunters x 3 A recoveries, anchor-feature GpLSI, and all baselines.",
+      "document_preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "document_vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ],
+      "anchor_preprocessings": [
+        "P0_raw"
+      ],
+      "anchor_vertex_hunters": [
+        "spa_current"
+      ],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [
+        "topicscore_graph_denoised",
+        "topicscore_raw",
+        "lda",
+        "kl_nmf",
+        "graph_kl_nmf",
+        "spatial_lda"
+      ]
+    },
+    "panel": {
+      "description": "Gene-panel size sweep (nested training-only panels): thresholding on/off x 3 hunters x 3 A recoveries, plus non-spatial baselines.",
+      "document_preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005"
+      ],
+      "document_vertex_hunters": [
+        "spa_current",
+        "svs_star",
+        "palm_accelerated"
+      ],
+      "anchor_preprocessings": [],
+      "anchor_vertex_hunters": [],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [
+        "topicscore_raw",
+        "lda",
+        "kl_nmf"
+      ]
+    },
+    "lambda_wide": {
+      "description": "Penalty-grid sensitivity: grid extended from 1e-4*1.2^28 (~0.0165) to 1e-4*1.2^49 (~0.75).",
+      "document_preprocessings": [
+        "P0_raw",
+        "P2_ke_weighted"
+      ],
+      "document_vertex_hunters": [
+        "spa_current"
+      ],
+      "anchor_preprocessings": [],
+      "anchor_vertex_hunters": [],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [],
+      "spectral_overrides": {
+        "grid_len": 50
+      }
+    },
+    "lambda_wide_tsgd": {
+      "description": "Penalty-grid sensitivity for graph-denoised TopicSCORE, which reuses the first (P0_raw) spectral step: same 50-point grid as lambda_wide. The single GpLSI record (P0/spa_current/A_current) is carried only because the spectral step requires one and should match lambda_wide.",
+      "document_preprocessings": [
+        "P0_raw"
+      ],
+      "document_vertex_hunters": [
+        "spa_current"
+      ],
+      "anchor_preprocessings": [],
+      "anchor_vertex_hunters": [],
+      "A_recoveries": [
+        "A_current"
+      ],
+      "competitors": [
+        "topicscore_graph_denoised"
+      ],
+      "spectral_overrides": {
+        "grid_len": 50
+      }
+    },
+    "p2_wide": {
+      "description": "Rerun of the core KE-weighted (P2) GpLSI geometries on the 50-point penalty grid (to ~0.75), because lambda_wide showed P2's CV optimum (~0.12-0.21) lies far above the core grid top (~0.0165). P3 is omitted because P3 = P2 at p = 2,000 (Tran thresholding removes <= 5 genes).",
+      "document_preprocessings": [
+        "P2_ke_weighted"
+      ],
+      "document_vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ],
+      "anchor_preprocessings": [],
+      "anchor_vertex_hunters": [],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [],
+      "spectral_overrides": {
+        "grid_len": 50
+      }
+    },
+    "k5_br5595": {
+      "description": "K = 5 on Br5595 (151669; only L3-L6 + WM are labelled), where K = 7 over-splits and seed spread is largest. P0 and P2 only (P1 = P0 and P3 = P2 at p = 2,000), all six hunters, anchor, all baselines, on the 50-point penalty grid so P2 is not under-smoothed (P0's lambda is interior on both grids).",
+      "document_preprocessings": [
+        "P0_raw",
+        "P2_ke_weighted"
+      ],
+      "document_vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ],
+      "anchor_preprocessings": [
+        "P0_raw"
+      ],
+      "anchor_vertex_hunters": [
+        "spa_current"
+      ],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [
+        "topicscore_graph_denoised",
+        "topicscore_raw",
+        "lda",
+        "kl_nmf",
+        "graph_kl_nmf",
+        "spatial_lda"
+      ],
+      "spectral_overrides": {
+        "grid_len": 50
+      }
+    },
+    "smoke": {
+      "description": "Wiring check with a tiny penalty grid and few iterations.",
+      "document_preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "document_vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ],
+      "anchor_preprocessings": [
+        "P0_raw"
+      ],
+      "anchor_vertex_hunters": [
+        "spa_current"
+      ],
+      "A_recoveries": [
+        "A_current",
+        "A_full_L2"
+      ],
+      "competitors": [
+        "topicscore_graph_denoised",
+        "topicscore_raw",
+        "lda",
+        "kl_nmf",
+        "graph_kl_nmf",
+        "spatial_lda"
+      ],
+      "spectral_overrides": {
+        "grid_len": 3,
+        "maxiter": 3,
+        "nfolds": 3
+      }
+    }
+  },
+  "poisson_refit": {
+    "note": "A_full_Pois is refit afterwards from each saved W by scripts/visium_dlpfc/refit_poisson.py (same split, panel, and W). Started from pooled gene frequencies: the diagnostics on 151673 showed an A_current start stalls (gap 2.3e-3 after 2000 iterations) because 14.6% exact zeros regrow only geometrically under multiplicative EM. At 1500 iterations the pooled start reaches a normalized gap of ~8.5e-6, above the 1e-8 tolerance; such fits are reported as 'near-converged' with the achieved gap (metadata.A_recovery.normalized_optimality_gap), not as converged.",
+    "initial": "pooled",
+    "interior_mass": 1e-06,
+    "max_iter": 1500,
+    "tolerance": 1e-08
+  }
+}
