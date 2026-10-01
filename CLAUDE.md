@@ -21,13 +21,15 @@ follows **`docs/protocol.md`** (fixed 2026-09-30). The DLPFC ablation (design in
 - `data/{crc,spleen,cook,dlpfc}/`; dlpfc h5ad and Cooking v2 are built, not tracked.
 
 ## Status as of 2026-09-30
-- Merge done, **uncommitted** on `yeojin-merge`. Ask before committing; never push
-  without asking.
+- Merge + protocol committed and pushed to `origin/yeojin-merge` (48b0c85, 2026-09-30);
+  not yet merged into `main`. Ask before committing; never push without asking.
+- `data/spleen/dataset/compartments/` is deliberately untracked (user undecided);
+  build it on each machine (see Cluster setup).
 - Verified: data hashes match the handoff; new pipeline = handoff runner (W/A ≤ 1.8e-15)
   and = pre-merge DLPFC runner (float32 storage precision); pytest 115 passed.
   Record of what was ported/fixed: `docs/handoff_merge.md`.
 - Protocol configs written and smoke-tested locally on all four datasets (2026-09-30);
-  pytest 120 passed. **The user submits production runs on the cluster themselves — do
+  pytest 122 passed. **The user submits production runs on the cluster themselves — do
   not submit jobs.** Word-frequency diagnostics (full data) are in
   `results/<dataset>_production/figures/word_frequency/`.
 - Existing DLPFC ablation results (on the cluster, `results/visium_dlpfc/`) are in the old
