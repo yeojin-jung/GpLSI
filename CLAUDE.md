@@ -15,21 +15,25 @@ follows **`docs/protocol.md`** (fixed 2026-09-30). The DLPFC ablation (design in
 - `scripts/run_experiment.py CONFIG [--task i]`, `scripts/refit_A.py`, `scripts/summarize.py`;
   `scripts/{data,analysis,simulations,slurm}/`.
 - `configs/base.json` = paper protocol; `configs/<dataset>/production.json` + `smoke.json`
-  (DLPFC twice: `production.json` = 2,000-gene dispersion panel, `production_tran.json` = Tran α = 0.1);
+  (DLPFC twice: `production.json` = 2,000-gene dispersion panel, `production_tran.json` = Tran α = 0.1;
+  MERFISH and Xenium: one model per animal / patient-timepoint, K = 12, wide λ grid;
+  data and experiment notes in `docs/merfish_xenium.md`);
   `configs/dlpfc/ablation/` = DLPFC ablation; `configs/handoff/` = Claire's 2026-09-15 designs.
 - Analyses: `scripts/analysis/` (shared helpers `shared.py`; per dataset subfolders).
 - `data/{crc,spleen,cook,dlpfc}/`; dlpfc h5ad and Cooking v2 are built, not tracked.
 
 ## Status as of 2026-09-30
-- Merge + protocol committed and pushed to `origin/yeojin-merge` (48b0c85, 2026-09-30);
-  not yet merged into `main`. Ask before committing; never push without asking.
+- Merge + protocol committed and pushed to `origin/yeojin-merge` (2026-09-30), MERFISH +
+  Xenium added 2026-10-01 (data prep, configs, cell-type neighbourhoods for Xenium, maps,
+  plaque and disease tasks); not yet merged into `main`. Ask before committing; never push
+  without asking. `docs/GPLSI_experiments.pdf` stays untracked (user's choice).
 - `data/spleen/dataset/compartments/` is deliberately untracked (user undecided);
   build it on each machine (see Cluster setup).
 - Verified: data hashes match the handoff; new pipeline = handoff runner (W/A ≤ 1.8e-15)
   and = pre-merge DLPFC runner (float32 storage precision); pytest 115 passed.
   Record of what was ported/fixed: `docs/handoff_merge.md`.
 - Protocol configs written and smoke-tested locally on all four datasets (2026-09-30);
-  pytest 122 passed. **The user submits production runs on the cluster themselves — do
+  pytest 130 passed. **The user submits production runs on the cluster themselves — do
   not submit jobs.** Word-frequency diagnostics (full data) are in
   `results/<dataset>_production/figures/word_frequency/`.
 - Existing DLPFC ablation results (on the cluster, `results/visium_dlpfc/`) are in the old
@@ -52,6 +56,8 @@ conda env create -f environment.yaml && conda activate gplsi-env   # needs suite
 python -m pip install -e '.[dev,benchmark]'
 python scripts/data/prepare_dlpfc.py --download      # 47,681 spots x 33,538 genes
 python scripts/data/prepare_cook_v2.py               # What's Cooking v2 corpus
+python scripts/data/prepare_merfish.py --download   # 5.5 GB source; 8 parallel ranges (slow server)
+python scripts/data/prepare_xenium.py --download    # 1.5 GB source
 curl -sLO https://github.com/huBioinfo/CytoCommunity/raw/main/CODEX_SpleenDataset.zip
 python scripts/data/prepare_spleen_compartment_annotations.py --archive CODEX_SpleenDataset.zip  # spleen labels
 n=$(python scripts/run_experiment.py configs/dlpfc/smoke.json --list | wc -l)

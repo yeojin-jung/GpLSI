@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from gplsi.pipeline import expand_tasks, load_config
 from gplsi.pipeline.metrics import (
@@ -175,3 +176,74 @@ def test_smoothed_heldout_deviance_is_finite_with_zero_probabilities() -> None:
     dense = heldout_count_metrics(W, np.array([[0.4, 0.4, 0.2], [0.2, 0.3, 0.5]]), test)
     assert np.isclose(dense["heldout_poisson_deviance_per_molecule_smoothed_1e-04"],
                       dense["heldout_poisson_deviance_per_molecule"], rtol=1e-3)
+
+
+def test_spatial_unit_configs_use_the_protocol_with_K12_and_the_wide_grid() -> None:
+    base = load_config(ROOT / "configs" / "dlpfc" / "production.json")
+    for dataset, units in (("merfish", 15), ("xenium", 25)):
+        config = load_config(ROOT / "configs" / dataset / "production.json")
+        assert config["grid"]["K"] == [12] and len(config["grid"]["seed"]) == 5
+        assert len(config["grid"]["unit"]) == units
+        assert config["spectral"]["grid_len"] == 50  # top 1e-4 * 1.2**49 ~ 0.76
+        assert config["dataset"]["vocabulary"] == "all"
+        for key in ("gplsi", "baselines", "A_recoveries", "vertex_parameters", "heldout_fraction"):
+            assert config[key] == base[key]
+        assert len(expand_tasks(config)) == units * 5 * 3
+
+
+def test_consensus_alignment_recovers_permutations_of_one_profile_set() -> None:
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts" / "analysis"))
+    from shared import consensus_alignment
+
+    rng = np.random.default_rng(5)
+    truth = rng.dirichlet(np.full(30, 0.2), size=6)
+    permutations = [rng.permutation(6) for _ in range(5)]
+    noisy = [truth[p] + rng.uniform(0, 1e-3, size=truth.shape) for p in permutations]
+    orders, consensus = consensus_alignment(noisy)
+    reference = permutations[0]
+    for permutation, order in zip(permutations, orders):
+        # aligned topic k of every unit is the same true topic as unit 0's topic k
+        assert np.array_equal(permutation[order], reference)
+    assert np.allclose(consensus, truth[reference], atol=1e-2)
+
+
+def test_cellular_neighborhoods_split_spatially_separated_cell_mixes() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("prepare_xenium", ROOT / "scripts" / "data" / "prepare_xenium.py")
+    prepare = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(prepare)
+    rng = np.random.default_rng(7)
+    # Two cores; in each, a left half of type "a" cells and a right half mixing "b" and "c".
+    xy, strata, types = [], [], []
+    for core in ("core1", "core2"):
+        points = rng.uniform(0, 100, size=(400, 2))
+        xy.append(points)
+        strata += [core] * 400
+        types += ["a" if x < 50 else rng.choice(["b", "c"]) for x, _ in points]
+    labels, composition = prepare.cellular_neighborhoods(np.vstack(xy), np.array(strata), np.array(types))
+    assert labels.shape == (800,) and set(labels) <= {f"N{i}" for i in range(1, prepare.NEIGHBORHOOD_COUNT + 1)}
+    sizes = pd.Series(labels).value_counts()
+    assert list(sizes.index) == sorted(sizes.index, key=lambda n: -sizes[n])  # N1 is the largest
+    assert np.allclose(composition.sum(axis=1), 1.0)
+    # Deep inside the left halves every window is pure "a": all those cells share one neighbourhood.
+    left = np.vstack(xy)[:, 0] < 40
+    assert len(set(labels[left])) <= 2
+    assert set(labels[left]).isdisjoint(set(labels[np.vstack(xy)[:, 0] > 60]))
+
+
+def test_evaluation_labels_are_part_of_the_cache_key() -> None:
+    from gplsi.pipeline.datasets import TaskData
+
+    class Bundle:
+        def hashes(self):
+            return {"counts": "same"}
+
+    first = TaskData(bundle=Bundle(), heldout=None, feature_names=np.array(["g"]),
+                     labels=pd.DataFrame({"label": ["x", "y"]}))
+    second = TaskData(bundle=Bundle(), heldout=None, feature_names=np.array(["g"]),
+                      labels=pd.DataFrame({"label": ["x", "z"]}))
+    assert first.hashes()["labels_sha256"] != second.hashes()["labels_sha256"]
+    assert "labels_sha256" not in TaskData(bundle=Bundle(), heldout=None, feature_names=np.array(["g"])).hashes()

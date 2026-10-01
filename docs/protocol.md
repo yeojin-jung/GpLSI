@@ -1,13 +1,24 @@
 # Real-data experiment protocol (paper)
 
-First full pass on CRC, spleen, What's Cooking and Visium DLPFC. Fixed on
-2026-09-30. Thresholding and weighting (P1–P3) come after this pass. Code:
+First full pass on CRC, spleen, What's Cooking, Visium DLPFC, MERFISH and
+Xenium. Fixed on 2026-09-30; MERFISH and Xenium added 2026-10-01 (their
+sources, processing and specifics: [merfish_xenium.md](merfish_xenium.md)). Thresholding and weighting (P1–P3) come after this pass. Code:
 `configs/base.json` (shared), `configs/<dataset>/production.json`, and
 `configs/<dataset>/smoke.json` (one-job wiring check of the same protocol).
 Claire's 2026-09-15 designs are kept in `configs/handoff/`; the DLPFC
 ablation designs are in `configs/dlpfc/ablation/` (`docs/visium_dlpfc_ablation.md`).
 
 ## 1. General protocol (all datasets)
+
+| Dataset | Documents | Words | Model per | K | Seeds | Tasks (x 3 parts) |
+|---|---|---|---|---|---|---|
+| CRC | 113,561 cell neighbourhoods | 8 cell types | dataset | 2, 3, 4, 5 | 26090301–05 | 20 |
+| Spleen | 100,840 cell neighbourhoods | 24 cell types | dataset (3 spleens jointly) | 3, 4, 5, 7, 10 | 26090401–05 | 25 |
+| Cooking | 19,017 recipes | 4,911 ingredients | dataset | 7 | 26090501–05 | 5 |
+| DLPFC | 47,681 spots | 2,000-gene panel, or Tran α = 0.1 | section (12) | 7 (5 on Br5595) | 26090601–05 | 60 per vocabulary |
+| MERFISH | 432,794 cells | 300 genes | animal (15) | 12 | 26090701–05 | 75 |
+| Xenium | 581,967 cells | 290 genes | patient × timepoint (25) | 12 | 26090801–05 | 125 |
+
 
 ### 1.1 Steps
 
@@ -37,15 +48,15 @@ All methods see the same training counts, graph and K. Labels and outcomes are n
 
 GpLSI settings (`configs/base.json`):
 
-* **λ (graph penalty):** grid `1e-4 · 1.2^j`, j = 0..28 (top ≈ 0.0165); chosen **once** by 5-fold graph cross-validation (held-out nodes interpolated from their neighbours, all folds scored) on the initialized right singular subspace, then held fixed (`cv_once`); ≤ 50 alternating iterations, tolerance 1e-5; initialization `weighted_debiased_mean_N_approx`. Recorded per fit: `spectral.rho_selected` (λ), `spectral.rho_grid`, `spectral.rho_cv` (CV error per λ and fold), `spectral.iterations`, `spectral.singular_values`. Flag fits whose λ is the top of the grid.
+* **λ (graph penalty):** grid `1e-4 · 1.2^j`, j = 0..28 (top ≈ 0.0165); chosen **once** by 5-fold graph cross-validation (held-out nodes interpolated from their neighbours, all folds scored) on the initialized right singular subspace, then held fixed (`cv_once`); ≤ 50 alternating iterations, tolerance 1e-5; initialization `weighted_debiased_mean_N_approx`. Recorded per fit: `spectral.rho_selected` (λ), `spectral.rho_grid`, `spectral.rho_cv` (CV error per λ and fold), `spectral.iterations`, `spectral.singular_values`. Flag fits whose λ is the top of the grid. MERFISH and Xenium use a wider grid, j = 0..49 (top ≈ 0.76; `spectral.grid_len = 50`), because the original benchmark selected the top of the narrow grid in every MERFISH and Xenium fit.
 * **SVS\*:** L (number of k-means centers) chosen by SVS\*'s own vertex-stability rule (`svs_star_stability`) at every K. The adaptive MixedSCORE rule borrowed from SVS cannot run at K ≥ 8 (spleen K = 10). The two rules gave the same Cooking topics at K = 4 for two of four preprocessings and similar ones otherwise. Recorded: `geometry.vertex_parameters.L`, the candidate-L scores, vertex condition number.
 * **A estimators:** `A_current` = least squares then row-wise projection onto the simplex (original GpLSI); `A_full_L2` = simplex-constrained least squares; `A_full_Pois` = multinomial (Poisson) MLE on training counts by EM from the pooled-frequency start (a warm start from A_current stalls: its exact zeros regrow only geometrically), ≤ 2,000 iterations, converged when the normalized KKT gap ≤ 1e-8; `A_recovery_info.*` records convergence.
 
 ### 1.3 Splits, seeds, held-out counts
 
 * **Held-out counts:** each document's counts are split by binomial thinning, 80% train / **20% held out** (`heldout_fraction`). Every method fits the training counts; scores use the held-out counts of the same documents (a document-completion evaluation, not held-out documents).
-* **Seeds:** **5 per dataset**: CRC 26090301–05, spleen 26090401–05, Cooking 26090501–05, DLPFC 26090601–05. The seed sets the thinning split, the graph-CV folds and the random starts of LDA, Spatial LDA and k-means. Every method runs every seed.
-* **Reporting:** curves show the mean over seeds ± SE (`sd / √n`, n ≥ 2). DLPFC: average over seeds within a section, then show the distribution over sections. Compare methods by their per-seed differences where possible (paired).
+* **Seeds:** **5 per dataset**: CRC 26090301–05, spleen 26090401–05, Cooking 26090501–05, DLPFC 26090601–05, MERFISH 26090701–05, Xenium 26090801–05. The seed sets the thinning split, the graph-CV folds and the random starts of LDA, Spatial LDA and k-means. Every method runs every seed.
+* **Reporting:** curves show the mean over seeds ± SE (`sd / √n`, n ≥ 2). DLPFC, MERFISH, Xenium: average over seeds within a fitting unit, then show the distribution over units; the biological replicates are donors (3), animals (15) and patients (20), not cells or sections. Compare methods by their per-seed differences where possible (paired).
 
 ### 1.4 Graphs
 
@@ -55,6 +66,8 @@ GpLSI settings (`configs/base.json`):
 | Spleen | B-cell-centered neighbourhoods | Source cell adjacency within each spleen (block-diagonal across the three mice) | same, φ = 0.1 |
 | Cooking | recipes | each recipe links its 5 nearest recipes by binary-set Jaccard similarity; union, undirected | unit |
 | DLPFC | Visium spots | symmetric 6-NN within the section (= the hexagonal grid) | `exp(-(d / median 1-NN distance)²)` |
+| MERFISH | cells | symmetric 6-NN within each half-section (an animal with two sections has no edge between them) | same as DLPFC |
+| Xenium | cells | symmetric 6-NN within each slide/core (`Patient_ID_cores_combined`) | same as DLPFC |
 
 ### 1.5 Metrics
 
@@ -97,9 +110,9 @@ Rows are cached by data, settings and source-code hash, so reruns skip finished 
 
 ### 1.8 Compute
 
-Each task runs as three jobs (`parts`): `gplsi` (GpLSI with its three A estimators + Topic-SCORE graph), `baselines` (pLSI, Topic-SCORE, LDA), `spatial_lda` (slowest). Jobs: CRC 60, spleen 75, Cooking 15, DLPFC 180 per vocabulary (360). Tasks are listed part by part (`run_experiment.py CONFIG --list`), so an index range selects one part.
+Each task runs as three jobs (`parts`): `gplsi` (GpLSI with its three A estimators + Topic-SCORE graph), `baselines` (pLSI, Topic-SCORE, LDA), `spatial_lda` (slowest). Jobs: CRC 60, spleen 75, Cooking 15, DLPFC 180 per vocabulary (360), MERFISH 225, Xenium 375. Tasks are listed part by part (`run_experiment.py CONFIG --list`), so an index range selects one part.
 
-Longest single fits in the handoff runs (full data, one CPU): Spatial LDA 6.3 h on CRC, 4.2 h on spleen, 0.7 h on Cooking; GpLSI 0.3–0.6 h; LDA, pLSI and Topic-SCORE minutes or less. The Slurm script caps a job at 12 h and `TASK_STRIDE` runs several tasks in sequence inside one job, so **submit `spatial_lda` parts separately** with at most one CRC/spleen task per job (or a longer `--time`), and pack the other parts. Smoke timing on one DLPFC section (30% of counts, 500 genes): Spatial LDA 71 s, LDA 28 s, GpLSI 12–15 s.
+Longest single fits in the handoff runs (full data, one CPU): Spatial LDA 6.3 h on CRC, 4.2 h on spleen, 0.7 h on Cooking; GpLSI 0.3–0.6 h; LDA, pLSI and Topic-SCORE minutes or less. The Slurm script caps a job at 12 h and `TASK_STRIDE` runs several tasks in sequence inside one job, so **submit `spatial_lda` parts separately** with at most one CRC/spleen task per job (or a longer `--time`), and pack the other parts. Smoke timing on one DLPFC section (30% of counts, 500 genes): Spatial LDA 71 s, LDA 28 s, GpLSI 12–15 s. At K = 12 on MERFISH/Xenium, SVS\*'s L selection dominates GpLSI's time even at smoke settings: about 1 min at 7,500 cells and 4 min at 36,000 (Xenium); expect a few hours per large unit for Spatial LDA (units up to 51,000 and 63,000 cells).
 
 ### 1.9 Run order (first pass)
 
@@ -111,6 +124,8 @@ Task index ranges per part (`run_experiment.py CONFIG --list`):
 | `cook/production.json` | 0–4 | 5–9 | 10–14 |
 | `crc/production.json` | 0–19 | 20–39 | 40–59 |
 | `spleen/production.json` | 0–24 | 25–49 | 50–74 |
+| `merfish/production.json` | 0–74 | 75–149 | 150–224 |
+| `xenium/production.json` | 0–124 | 125–249 | 250–374 |
 
 Within a part, tasks run seed by seed (DLPFC: all sections of seed 1 first).
 Submit a range packed into at most 10 jobs with
@@ -123,6 +138,7 @@ Finished fits are cached, so resubmitting a range only runs what is missing or f
 3. **Cooking:** all 15 tasks (small; its results drive the thresholding decision).
 4. **CRC and spleen GpLSI + baselines:** CRC 0–39, spleen 0–49 (packed). Spleen K = 10 is the first run of SVS\* stability-L at that K: look at it first.
 5. **CRC and spleen Spatial LDA:** CRC 40–59, spleen 50–74, about one task per job (up to 6.3 h / 4.2 h each, ≈ 220 job-hours in total, ≈ a day at 10 concurrent jobs). Start them as soon as slots free up: they are the long pole.
+6. **MERFISH and Xenium:** smoke first (`configs/{merfish,xenium}/smoke.json`), then a pilot of seed 1 GpLSI (MERFISH 0–14, Xenium 0–24): check λ is now interior and time the large units. Then the rest; pack GpLSI and baselines, and run Spatial LDA about one task per job.
 
 ## 2. CRC (Stanford colorectal cancer CODEX)
 
@@ -156,3 +172,23 @@ Finished fits are cached, so resubmitting a range only runs what is missing or f
 * **K** = 7 on the eight sections with layers L1–L6 + WM (151507–151510, 151673–151676); **K = 5** on the four Br5595 sections (151669–151672), which only have L3–L6 + WM. Tasks: 12 sections × 5 seeds (× 3 parts) per vocabulary.
 * **Diagnostics** (`word_frequency_diagnostics.py configs/dlpfc/production.json [--all-genes] [--alpha a]`): all genes are extremely heterogeneous (max/min ≈ 10⁶, Gini ≈ 0.9; about 12,000 genes have no training count). On all genes Tran keeps 11,300–12,900 genes at α = 0.005, 9,000–11,000 at 0.01 and 1,300–2,300 at 0.1. Within the dispersion panel Tran at α = 0.005 removes almost nothing (≥ 1,993 of 2,000 kept).
 * **Downstream task — layer recovery:** ARI and NMI of dominant topics against `layer_guess_reordered` on labelled spots (`metrics.external__layer_guess_reordered__ari`, `…__nmi`; plus a cross-validated logistic probe, `…__cv_balanced_accuracy`). `dlpfc/plot_production.py`: per-section ARI/NMI per method; maps of every section next to the manual layers.
+
+## 6. MERFISH (TREM2-R47H/5xFAD mouse brain)
+
+* **Source:** Johnston et al., *Mol Psychiatry* 2025; Brain Image Library ace-ear-nap, `MERFISH_Data.h5ad` (CC BY-SA 4.0). `scripts/data/prepare_merfish.py --download` keeps the integer `layers/RNA` counts and checks the published dimensions.
+* **Documents:** 432,794 cells (each cell's own counts, not a neighbourhood) from 19 coronal half-sections of 15 animals at 12 months: WT (3 animals), 5xFAD (4), Trem2R47H (4), Trem2R47H;5xFAD (4). **Words:** the 300-gene targeted panel, all genes. Mean length ≈ 322 molecules per cell.
+* **Model per animal** (17,863–51,339 cells); an animal with two sections shares one A, and its graph has no edge between sections. Genotype is constant within a fit.
+* **K** = 12. Tasks: 15 animals × 5 seeds (× 3 parts).
+* **Diagnostics** (training counts, per animal): mean length 132–357 molecules; word frequencies are heterogeneous (max/min 680–2,700, Gini 0.67–0.78), but Tran keeps all 300 genes at α = 0.005 and 251–300 at α = 0.1, so thresholding barely applies.
+* **Downstream task 1 — plaque proximity** (`merfish/plaque_proximity.py`): in the 8 animals carrying 5xFAD, predict each cell's plaque distance (within-animal rank; the unit is undocumented) from its W by ridge regression, cross-validated over 5 spatial blocks per section (neighbouring cells share their distance, so random folds would leak). Scores: Spearman of predicted vs true rank, and AUC for the 10% of cells nearest a plaque. References: annotated cell type (one-hot) and all 300 genes. Plaque distance in WT and Trem2-only animals (≈ 3,000) is not a distance to a plaque and is not used.
+* **Downstream task 2 — cell-type and region recovery** (`plot_label_recovery.py`, maps with `plot_unit_maps.py`): ARI/NMI of the dominant topic and the cross-validated classifier from W, per animal, against coarse (9) and detailed (37) cell types and coarse (11) and detailed (17) anatomical regions. The released Leiden clusters are not scored (derived from the same expression).
+
+## 7. Xenium (ulcerative colitis)
+
+* **Source:** Mennillo et al., *J Clin Invest* 2026; Figshare 27327813 v1, Dataset 1, `25_11_22_Xenium_Dataset1_290_IntReps1and2_Annotated.h5ad` (CC BY 4.0). `scripts/data/prepare_xenium.py --download` keeps `layers/raw_counts`, drops the 221 unassigned cells, and checks the MD5 and the published dimensions.
+* **Documents:** 581,967 cells of FFPE colon biopsies; **words:** the 290-gene custom panel, all genes. Mean length ≈ 142 molecules per cell.
+* **Model per patient × condition/timepoint unit** (25 units, 837–63,487 cells): healthy control (9), pre-vedolizumab responder (5) and non-responder (3), post-vedolizumab responder (3) and non-responder (5); 20 patients, five with a pre and a post unit. Graph within each of 114 slides/cores.
+* **K** = 12. Tasks: 25 units × 5 seeds (× 3 parts).
+* **Diagnostics** (training counts, per unit): mean length 64–163 molecules; max/min word frequency 600–17,500, Gini 0.54–0.77; Tran keeps 281–290 of 290 genes at α = 0.005 and 203–276 at α = 0.1.
+* **Downstream task 1 — healthy vs ulcerative colitis** (`xenium/disease_classification.py`): topics of the 25 separately fitted units are matched to a consensus by cosine of A rows (common panel); each unit's predictor is its mean W in ILR coordinates. Classify the 9 healthy-control units against the 8 pre-treatment UC units (one unit per patient) by leave-one-patient-out L2 logistic regression; ROC AUC and balanced accuracy per seed, mean ± SE over seeds. References: annotated coarse cell-type proportions and mean gene frequencies. With 17 units this is exploratory; post-treatment units are left out (they repeat patients and mix treatment with disease).
+* **Downstream task 2 — label recovery** (`plot_label_recovery.py`, maps with `plot_unit_maps.py`): ARI/NMI and the cross-validated classifier, per unit, against (a) **8 cell-type neighbourhoods**, the spatial reference, built by `prepare_xenium.py` from the annotated cell types because the release has no tissue regions (coarse cell-type mix of each cell's 10 nearest cells in its core, k-means into 8 over all cells; merfish_xenium.md §3.2), and (b) the cell classes: 5 compartments (broad classes such as Immune or Stromal, not regions), 13 coarse and 34 fine cell types. The Leiden-derived annotation is not scored.

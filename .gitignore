@@ -23,3 +23,7 @@ slurm/
 
 # Spatial LDA (utils/spatial_lda/admm.py) dumps these on non-convergence
 *.dbg.pkl
+
+# Processed MERFISH / Xenium (scripts/data/prepare_{merfish,xenium}.py)
+data/merfish/*
+data/xenium/*

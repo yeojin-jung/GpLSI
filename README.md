@@ -147,7 +147,7 @@ model.fit(bundle.frequencies, bundle.document_lengths, K,
 
 ## Running experiments
 
-The paper's real-data experiments follow one protocol, written out in [docs/protocol.md](docs/protocol.md): GpLSI (SVS\*, three A estimators) against pLSI, Topic-SCORE, graph-denoised Topic-SCORE, LDA and Spatial LDA; 20% of each document's counts held out; five seeds; one config per dataset, `configs/<dataset>/production.json` (DLPFC also `production_tran.json`, a Tran α = 0.1 vocabulary instead of the 2,000-gene panel) ([configs/README.md](configs/README.md) documents the fields). The config's `grid` (K, seeds, and for DLPFC section/panel size) and `parts` define the tasks:
+The paper's real-data experiments follow one protocol, written out in [docs/protocol.md](docs/protocol.md): GpLSI (SVS\*, three A estimators) against pLSI, Topic-SCORE, graph-denoised Topic-SCORE, LDA and Spatial LDA; 20% of each document's counts held out; five seeds; one config per dataset, `configs/<dataset>/production.json` (DLPFC also `production_tran.json`, a Tran α = 0.1 vocabulary instead of the 2,000-gene panel; MERFISH and Xenium are prepared by `scripts/data/prepare_{merfish,xenium}.py --download`) ([configs/README.md](configs/README.md) documents the fields). The config's `grid` (K, seeds, and for DLPFC section/panel size) and `parts` define the tasks:
 
 ```sh
 python scripts/analysis/word_frequency_diagnostics.py configs/cook/production.json  # before fitting
@@ -174,6 +174,10 @@ python scripts/analysis/crc/tumor_phenotype_alignment.py configs/crc/production.
 python scripts/analysis/spleen/compartment_comparison.py configs/spleen/production.json  # ARI/AMI/LOSO, zone shares, maps
 python scripts/analysis/cook/plot_cuisine_composition.py configs/cook/production.json  # mean W per cuisine
 python scripts/analysis/dlpfc/plot_production.py configs/dlpfc/production.json        # layer ARI/NMI per section; maps
+python scripts/analysis/plot_label_recovery.py CONFIG   # held-out label ARI/NMI/classifier per unit (DLPFC, MERFISH, Xenium)
+python scripts/analysis/merfish/plaque_proximity.py configs/merfish/production.json  # plaque distance from W (5xFAD animals)
+python scripts/analysis/xenium/disease_classification.py configs/xenium/production.json  # healthy vs UC from unit topic composition
+python scripts/analysis/plot_unit_maps.py CONFIG       # dominant-topic maps vs a reference label per unit (DLPFC, MERFISH, Xenium)
 ```
 
 The spleen scripts need `data/spleen/dataset/compartments/`, built by `scripts/data/prepare_spleen_compartment_annotations.py --archive CODEX_SpleenDataset.zip` (CytoCommunity archive). The DLPFC ablation (`configs/dlpfc/ablation/`) has its own scripts in `scripts/analysis/dlpfc/`; `configs/handoff/` reproduces the handoff runs.

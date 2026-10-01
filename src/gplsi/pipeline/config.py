@@ -18,7 +18,7 @@ from typing import Any
 
 
 # Task axes other than K and seed, in the order they appear in task ids.
-EXTRA_AXES = ("section", "panel_size", "retained_fraction")
+EXTRA_AXES = ("section", "unit", "panel_size", "retained_fraction")
 
 # Keys whose values only choose *which* methods run.  They are excluded from
 # the settings hash so that splitting a run into parts does not invalidate
@@ -104,11 +104,14 @@ def task_id(config: dict[str, Any], task: dict[str, Any]) -> str:
     tokens = [str(dataset["name"])]
     if dataset.get("group"):
         tokens.append(str(dataset["group"]))
-    if "section" in task:
-        tokens.append(str(task["section"]))
+    for axis in ("section", "unit"):
+        if axis in task:
+            tokens.append(str(task[axis]))
     tokens += [f"K{int(task['K'])}"]
     if dataset.get("vocabulary") == "tran":
         tokens.append(f"tran{float(dataset['tran_alpha']):g}")
+    elif dataset.get("vocabulary") == "all":
+        pass
     elif "panel_size" in task:
         tokens.append(f"p{int(task['panel_size'])}")
     if "retained_fraction" in task:

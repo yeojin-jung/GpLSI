@@ -345,3 +345,49 @@ def matched_topic_colors(hard: np.ndarray, labels: np.ndarray, label_colors: dic
     colors = {int(r): label_colors[present[c]] for r, c in zip(rows, cols) if overlap[r, c] > 0}
     greys = iter(["#444444", "#8a8985", "#b8b7b0", "#6b6a66", "#d0cfca"] * 3)
     return [colors.get(k) or next(greys) for k in range(K)]
+
+
+def consensus_alignment(profiles: list[np.ndarray], iterations: int = 5) -> tuple[list[np.ndarray], np.ndarray]:
+    """Match the topics of separately fitted units (same vocabulary) to a common reference.
+
+    Start from the first unit's A; repeatedly match every unit to the
+    reference by full-row cosine (Hungarian) and replace the reference by the
+    mean of the matched, row-normalized profiles, until the matching stops
+    changing. Returns each unit's order (aligned topic k = original
+    ``order[k]``) and the consensus profiles. Display and summary use only:
+    a matched topic need not be the same biology in every unit.
+    """
+
+    profiles = [normalize_rows(A) for A in profiles]
+    reference = profiles[0]
+    orders: list[np.ndarray] = []
+    for _ in range(iterations):
+        new_orders = [align_topics(A, reference)[0] for A in profiles]
+        reference = normalize_rows(np.mean([A[order] for A, order in zip(profiles, new_orders)], axis=0))
+        if orders and all(np.array_equal(a, b) for a, b in zip(orders, new_orders)):
+            break
+        orders = new_orders
+    return orders, reference
+
+
+def ilr(composition: np.ndarray, floor: float = 1e-8) -> np.ndarray:
+    """Helmert isometric log-ratio coordinates of compositions (rows), after flooring and re-closing."""
+
+    from scipy.linalg import helmert
+
+    composition = np.maximum(np.asarray(composition, dtype=float), floor)
+    composition /= composition.sum(axis=1, keepdims=True)
+    log = np.log(composition)
+    return (log - log.mean(axis=1, keepdims=True)) @ helmert(composition.shape[1]).T
+
+
+def dataset_file(target: str | Path) -> Path:
+    """The processed H5AD of a spatial-unit experiment (DLPFC, MERFISH, Xenium), from its config or results."""
+
+    import json
+
+    target = Path(target)
+    if target.suffix == ".json":
+        return REPO_ROOT / load_config(target)["dataset"]["file"]
+    task = json.loads(next(run_directory(target).glob("*/task.json")).read_text())
+    return REPO_ROOT / task["config"]["dataset"]["file"]

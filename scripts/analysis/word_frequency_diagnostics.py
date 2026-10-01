@@ -75,11 +75,11 @@ def tran_threshold(alpha, n: int, p: int, N_bar: float):
 
 
 def unit_tasks(config: dict) -> list[dict]:
-    """One task per modeled unit (DLPFC section, else the whole dataset), first seed."""
+    """One task per modeled unit (DLPFC section, MERFISH/Xenium unit, else the whole dataset), first seed."""
 
     seen, tasks = set(), []
     for task in expand_tasks(config):
-        key = task.get("section")
+        key = task.get("unit", task.get("section"))
         if key not in seen:
             seen.add(key)
             tasks.append(task)
@@ -209,10 +209,10 @@ def main() -> None:
 
     config = load_config(args.config)
     if args.all_genes and config["dataset"]["name"] != "dlpfc":
-        raise SystemExit("--all-genes applies to DLPFC only (other datasets fit their full vocabulary)")
+        raise SystemExit("--all-genes applies to DLPFC only (the other datasets fit their full vocabulary)")
     results = {}
     for task in unit_tasks(config):
-        name = str(task.get("section", config["dataset"]["name"]))
+        name = str(task.get("unit", task.get("section", config["dataset"]["name"])))
         if args.all_genes:
             counts, panel = all_gene_counts(config, task)
             results[name] = diagnostics(counts, panel, args.alpha)

@@ -1,0 +1,53 @@
+{
+  "extends": "../base.json",
+  "name": "xenium_production",
+  "description": "Xenium ulcerative colitis (Mennillo et al.; Figshare 27327813 Dataset 1): 581,967 cells x 290 genes, one model per patient-condition/timepoint unit (25), 6-NN graph within each slide/core. Paper protocol, K = 12, five seeds, all genes (targeted panel), penalty grid widened to 50 values (top 1e-4 * 1.2^49 ~ 0.76) because the original benchmark selected the top of the 29-value grid in every Xenium fit. Build data with scripts/data/prepare_xenium.py --download.",
+  "dataset": {
+    "name": "xenium",
+    "file": "data/xenium/xenium_uc.h5ad",
+    "graph_k": 6,
+    "vocabulary": "all"
+  },
+  "grid": {
+    "unit": [
+      "HS31_HC",
+      "HS32_POST_VDZ_R",
+      "HS32_PRE_VDZ_R",
+      "HS33_HC",
+      "HS34_POST_VDZ_R",
+      "HS34_PRE_VDZ_R",
+      "HS35_HC",
+      "HS36_POST_VDZ_R",
+      "HS36_PRE_VDZ_R",
+      "HS37_HC",
+      "HS38_PRE_VDZ_R",
+      "HS39_HC",
+      "HS40_HC",
+      "HS41_HC",
+      "HS42_HC",
+      "HS43_HC",
+      "HS44_PRE_VDZ_R",
+      "HS45_POST_VDZ_NR",
+      "HS46__PRE_VDZ_NR",
+      "HS47_POST_VDZ_NR",
+      "HS48_POST_VDZ_NR",
+      "HS48_PRE_VDZ_NR",
+      "HS49_POST_VDZ_NR",
+      "HS50_POST_VDZ_NR",
+      "HS50_PRE_VDZ_NR"
+    ],
+    "K": [
+      12
+    ],
+    "seed": [
+      26090801,
+      26090802,
+      26090803,
+      26090804,
+      26090805
+    ]
+  },
+  "spectral": {
+    "grid_len": 50
+  }
+}

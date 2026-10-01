@@ -6,7 +6,7 @@ go to `<output_root>/<name>/<task id>/`.
 | Folder | Experiments |
 |---|---|
 | `base.json` | The paper protocol shared by all four datasets ([docs/protocol.md](../docs/protocol.md)) |
-| `crc/`, `spleen/`, `cook/`, `dlpfc/` | `production.json` (the protocol's full pass on that dataset) and `smoke.json` (the same methods on a tiny subset, one job); DLPFC also `production_tran.json` / `smoke_tran.json` (Tran α = 0.1 vocabulary instead of the 2,000-gene dispersion panel) |
+| `crc/`, `spleen/`, `cook/`, `dlpfc/`, `merfish/`, `xenium/` | `production.json` (the protocol's full pass on that dataset) and `smoke.json` (the same methods on a tiny subset, one job); DLPFC also `production_tran.json` / `smoke_tran.json` (Tran α = 0.1 vocabulary instead of the 2,000-gene dispersion panel) |
 | `dlpfc/ablation/` | Visium DLPFC ablation designs and their own `base.json`: `core`, `panel`, `lambda_wide`, `lambda_wide_tsgd`, `p2_wide`, `k5_br5595`, `extended`, `smoke` (see `docs/visium_dlpfc_ablation.md`) |
 | `handoff/` | Claire Donnat's 2026-09-15 production designs (CRC, spleen, Cooking, Cooking Tran-threshold sensitivity and SVS\* stability-L runs), to reproduce the handoff reports; results go to `results/handoff_*` |
 | `simulations/` | Configs of the synthetic experiments in `scripts/simulations/` (their own format) |
@@ -20,9 +20,11 @@ go to `<output_root>/<name>/<task id>/`.
   "description": "...",
   "output_root": "results",
   "dataset": {"name": "crc"},       // crc | spleen (+ "group": "BALBc-1".."3" or "joint") | cook | cook_v2 | dlpfc
-                                    // dlpfc: "vocabulary": "dispersion" (top panel_size genes) or "tran" (+ "tran_alpha")
+                                    // dlpfc | merfish | xenium: processed H5AD ("file"), one model per unit;
+                                    // "vocabulary": "dispersion" (top panel_size genes), "tran" (+ "tran_alpha") or "all"
   "grid": {"K": [5, 6], "seed": [1, 2]},   // one task per combination;
-                                           // dlpfc adds "section", "panel_size", "retained_fraction"
+                                           // dlpfc adds "section", "panel_size", "retained_fraction";
+                                           // merfish/xenium add "unit" (animal / patient-timepoint)
   "subset": {"n": 80, "strategy": "graph_stratified"},   // optional: connected, graph_stratified, or whole_groups
   "heldout_fraction": 0.2,          // binomial count thinning: train / held-out molecules
   "post_tran_row_filter": false,    // Cooking alpha runs: drop recipes empty after the Tran threshold

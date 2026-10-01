@@ -1,0 +1,43 @@
+{
+  "extends": "../base.json",
+  "name": "merfish_production",
+  "description": "MERFISH TREM2-R47H/5xFAD mouse brain (Johnston et al.; Brain Image Library ace-ear-nap): 432,794 cells x 300 genes, one model per animal (15; WT, 5xFAD, Trem2, Trem2;5xFAD), 6-NN graph within each half-section (19). Paper protocol, K = 12, five seeds, all genes (targeted panel), penalty grid widened to 50 values (top 1e-4 * 1.2^49 ~ 0.76) because the original benchmark selected the top of the 29-value grid in every MERFISH fit. Build data with scripts/data/prepare_merfish.py --download.",
+  "dataset": {
+    "name": "merfish",
+    "file": "data/merfish/merfish_trem2_5xfad.h5ad",
+    "graph_k": 6,
+    "vocabulary": "all"
+  },
+  "grid": {
+    "unit": [
+      "5xFAD1",
+      "5xFAD3",
+      "5xFAD4",
+      "5xFAD5",
+      "Trem2_1",
+      "Trem2_3",
+      "Trem2_4",
+      "Trem2_5",
+      "Trem2_5xFAD1",
+      "Trem2_5xFAD3",
+      "Trem2_5xFAD4",
+      "Trem2_5xFAD5",
+      "WT1",
+      "WT3",
+      "WT5"
+    ],
+    "K": [
+      12
+    ],
+    "seed": [
+      26090701,
+      26090702,
+      26090703,
+      26090704,
+      26090705
+    ]
+  },
+  "spectral": {
+    "grid_len": 50
+  }
+}

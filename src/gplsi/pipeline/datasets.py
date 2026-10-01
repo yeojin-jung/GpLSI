@@ -35,6 +35,8 @@ from .splits import thin_and_split_sparse_counts
 
 
 CANONICAL_DATASETS = ("crc", "spleen", "cook", "cook_v2")
+# Processed H5ADs with one model per fitting unit (scripts/data/prepare_<name>.py).
+SPATIAL_UNIT_DATASETS = ("dlpfc", "merfish", "xenium")
 
 
 @dataclass
@@ -51,6 +53,11 @@ class TaskData:
     def hashes(self) -> dict[str, Any]:
         output = dict(self.bundle.hashes())
         output["heldout_sha256"] = None if self.heldout is None else sha256_array(self.heldout, "<i8")
+        # Evaluation labels change the scores, so they belong in the cache key.
+        if self.labels is not None:
+            output["labels_sha256"] = hashlib.sha256(
+                self.labels.astype(str).to_csv(index=False).encode()
+            ).hexdigest()
         return output
 
 
@@ -65,11 +72,13 @@ def sha256_array(value: Any, dtype: str) -> str:
 
 def prepare_task_data(config: dict[str, Any], task: dict[str, Any]) -> TaskData:
     name = str(config["dataset"]["name"])
-    if name == "dlpfc":
+    if name in SPATIAL_UNIT_DATASETS:
         return _prepare_dlpfc(config, task)
     if name in CANONICAL_DATASETS:
         return _prepare_canonical(config, task)
-    raise ValueError(f"unknown dataset {name!r}; expected dlpfc or one of {CANONICAL_DATASETS}")
+    raise ValueError(
+        f"unknown dataset {name!r}; expected one of {SPATIAL_UNIT_DATASETS + tuple(CANONICAL_DATASETS)}"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -206,7 +215,12 @@ def _drop_rows_empty_after_tran(
 
 
 def load_dlpfc_section(processed_file: Path, section: str) -> dict[str, Any]:
-    """Read one section's counts, coordinates, ids, and evaluation-only labels."""
+    """Read one fitting unit's counts, coordinates, ids, and evaluation-only labels.
+
+    Works for any processed spatial H5AD (DLPFC section, MERFISH animal,
+    Xenium patient-timepoint): the unit column, graph-stratum column and
+    evaluation-only columns are named in the file's ``uns``.
+    """
 
     import anndata as ad
 
@@ -229,25 +243,39 @@ def load_dlpfc_section(processed_file: Path, section: str) -> dict[str, Any]:
         "graph_unit_ids": adata.obs[str(adata.uns.get("graph_unit_column", unit_column))]
         .astype(str)
         .to_numpy(),
-        "labels": adata.obs[[c for c in forbidden if c in adata.obs]].reset_index(drop=True),
+        # Scored labels: ``evaluation_label_columns`` when declared (other
+        # forbidden columns, e.g. condition, stay out of the metrics).
+        "labels": adata.obs[
+            [c for c in adata.uns.get("evaluation_label_columns", forbidden) if c in adata.obs]
+        ].reset_index(drop=True),
     }
 
 
-def _prepare_dlpfc(config: dict[str, Any], task: dict[str, Any]) -> TaskData:
-    """One section: split counts, choose the vocabulary on training counts only.
+def task_unit(task: dict[str, Any]) -> str:
+    """The fitting unit of a task: ``unit`` (MERFISH animal, Xenium patient-timepoint) or DLPFC ``section``."""
 
-    ``dataset.vocabulary`` is ``"dispersion"`` (default: the top ``panel_size``
-    genes by variance/mean; spots need a training count on the top
-    ``reference_panel_size`` genes, which also give a common scoring
-    vocabulary across panel sizes) or ``"tran"`` (every gene passing the Tran
-    threshold at ``dataset.tran_alpha``; spots need a training count on it).
+    return str(task["unit"] if "unit" in task else task["section"])
+
+
+def _prepare_dlpfc(config: dict[str, Any], task: dict[str, Any]) -> TaskData:
+    """One fitting unit of a processed spatial H5AD (DLPFC, MERFISH, Xenium).
+
+    Split counts, then choose the vocabulary on training counts only.
+    ``dataset.vocabulary`` is ``"dispersion"`` (DLPFC default: the top
+    ``panel_size`` genes by variance/mean; spots need a training count on the
+    top ``reference_panel_size`` genes, which also give a common scoring
+    vocabulary across panel sizes), ``"tran"`` (every gene passing the Tran
+    threshold at ``dataset.tran_alpha``) or ``"all"`` (every gene: targeted
+    panels). With ``tran`` and ``all``, observations need a training count on
+    the vocabulary. The graph is built within each graph stratum of the unit
+    (the file's ``uns["graph_unit_column"]``).
     """
 
     dataset = config["dataset"]
     seed = int(task["seed"])
     vocabulary = str(dataset.get("vocabulary", "dispersion"))
     processed_file = REPO_ROOT / dataset["file"]
-    section = load_dlpfc_section(processed_file, str(task["section"]))
+    section = load_dlpfc_section(processed_file, task_unit(task))
     split = thin_and_split_sparse_counts(
         section["counts"],
         retained_fraction=float(task.get("retained_fraction", 1.0)),
@@ -282,8 +310,12 @@ def _prepare_dlpfc(config: dict[str, Any], task: dict[str, Any]) -> TaskData:
             vocabulary_size=selection["kept_count"],
             vocabulary_training_mass=selection["kept_mass"],
         )
+    elif vocabulary == "all":
+        panel = np.arange(split.train.shape[1])
+        reference_columns = None
+        vocabulary_summary.update(vocabulary_size=int(panel.size))
     else:
-        raise ValueError(f"unknown DLPFC vocabulary {vocabulary!r}; expected 'dispersion' or 'tran'")
+        raise ValueError(f"unknown vocabulary {vocabulary!r}; expected 'dispersion', 'tran' or 'all'")
     train_panel = split.train[:, panel].toarray()
     required = reference_columns if reference_columns is not None else np.arange(train_panel.shape[1])
     keep = train_panel[:, required].sum(axis=1) > 0
@@ -297,7 +329,7 @@ def _prepare_dlpfc(config: dict[str, Any], task: dict[str, Any]) -> TaskData:
     feature_ids = section["feature_ids"][panel]
     symbols = section["feature_symbols"]
     bundle = RealDataBundle(
-        dataset=f"dlpfc::{task['section']}",
+        dataset=f"{dataset['name']}::{task_unit(task)}",
         counts=train,
         frequencies=train / lengths[:, None],
         document_lengths=lengths,
