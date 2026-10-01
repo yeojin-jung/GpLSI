@@ -15,13 +15,14 @@ source revisions rather than copying either file wholesale.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from itertools import combinations, permutations
-from math import comb, factorial
+from itertools import combinations
+from math import comb
 from time import perf_counter
 from typing import Any, MutableMapping
 
 import numpy as np
 from numpy.linalg import norm
+from scipy.optimize import minimize
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import pdist
 from sklearn.cluster import KMeans
@@ -301,20 +302,224 @@ def exhaustive_vertex_search(
 
 
 def _permutation_stability(current: np.ndarray, previous: np.ndarray) -> float:
-    K = current.shape[0]
-    if factorial(K) > 1_000_000:
+    """Exact MixedSCORE vertex stability in polynomial time.
+
+    The R source minimizes ``max(rowSums(V.L[perm,] - V.Lminus1)^2)``.
+    Each pairwise cost therefore depends only on the two row sums.  The exact
+    one-dimensional bottleneck assignment pairs their sorted values, avoiding
+    the historical K! enumeration without changing the objective.
+    """
+
+    current = np.asarray(current, dtype=float)
+    previous = np.asarray(previous, dtype=float)
+    if current.ndim != 2 or previous.ndim != 2 or current.shape != previous.shape:
         raise VertexHuntingError(
-            f"faithful MixedSCORE stability search requires {K}! permutations"
+            "stability comparison requires vertex matrices with matching shapes"
         )
-    best = np.inf
-    for order in permutations(range(K)):
-        # Preserve the R source literally: ``rowSums(V.L - V.Lminus1)^2``
-        # squares each row sum; it is not a sum of squared coordinates.
-        discrepancy = np.max(
-            np.sum(current[np.asarray(order)] - previous, axis=1) ** 2
+    current_sums = np.sort(np.sum(current, axis=1))
+    previous_sums = np.sort(np.sum(previous, axis=1))
+    return float(np.max((current_sums - previous_sums) ** 2))
+
+
+def _distance_to_convex_hull_qp(
+    point: np.ndarray,
+    vertices: np.ndarray,
+    *,
+    tolerance: float,
+    max_iterations: int,
+) -> tuple[float, dict[str, Any]]:
+    """Project one point onto a simplex hull without active-face enumeration."""
+
+    point = np.asarray(point, dtype=float)
+    vertices = np.asarray(vertices, dtype=float)
+    K = vertices.shape[0]
+    initial = np.full(K, 1.0 / K)
+
+    def objective(weights: np.ndarray) -> float:
+        residual = weights @ vertices - point
+        return 0.5 * float(residual @ residual)
+
+    def gradient(weights: np.ndarray) -> np.ndarray:
+        return (weights @ vertices - point) @ vertices.T
+
+    fit = minimize(
+        objective,
+        initial,
+        jac=gradient,
+        method="SLSQP",
+        bounds=[(0.0, None)] * K,
+        constraints={
+            "type": "eq",
+            "fun": lambda weights: float(np.sum(weights) - 1.0),
+            "jac": lambda weights: np.ones_like(weights),
+        },
+        options={"ftol": tolerance, "maxiter": max_iterations, "disp": False},
+    )
+    weights = np.asarray(fit.x, dtype=float)
+    feasibility_error = float(abs(np.sum(weights) - 1.0))
+    minimum_weight = float(np.min(weights))
+    if (
+        not fit.success
+        or not np.isfinite(weights).all()
+        or feasibility_error > max(1e-8, 10.0 * tolerance)
+        or minimum_weight < -max(1e-8, 10.0 * tolerance)
+    ):
+        raise VertexHuntingError(
+            "polynomial convex-hull projection failed: "
+            f"status={fit.status}, message={fit.message}, "
+            f"feasibility_error={feasibility_error:.3g}, "
+            f"minimum_weight={minimum_weight:.3g}"
         )
-        best = min(best, float(discrepancy))
-    return best
+    # Re-normalizing after clipping only removes solver-scale roundoff.
+    weights = np.maximum(weights, 0.0)
+    weights /= np.sum(weights)
+    distance = float(np.linalg.norm(weights @ vertices - point))
+    return distance, {
+        "iterations": int(getattr(fit, "nit", 0)),
+        "feasibility_error": feasibility_error,
+        "minimum_weight": minimum_weight,
+    }
+
+
+def _max_distance_to_convex_hull_qp(
+    centers: np.ndarray,
+    selected: np.ndarray,
+    *,
+    tolerance: float,
+    max_iterations: int,
+) -> tuple[float, dict[str, Any]]:
+    """SVS hull-containment objective using non-combinatorial convex QP solves."""
+
+    centers = np.asarray(centers, dtype=float)
+    selected = np.asarray(selected, dtype=int)
+    vertices = centers[selected]
+    mask = np.ones(centers.shape[0], dtype=bool)
+    mask[selected] = False
+    diagnostics: list[dict[str, Any]] = []
+    distances: list[float] = []
+    for point in centers[mask]:
+        distance, diagnostic = _distance_to_convex_hull_qp(
+            point,
+            vertices,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+        )
+        distances.append(distance)
+        diagnostics.append(diagnostic)
+    return (max(distances) if distances else 0.0), {
+        "projection_solve_count": len(diagnostics),
+        "projection_iterations_total": int(
+            sum(item["iterations"] for item in diagnostics)
+        ),
+        "projection_iterations_max": int(
+            max((item["iterations"] for item in diagnostics), default=0)
+        ),
+        "projection_feasibility_error_max": float(
+            max((item["feasibility_error"] for item in diagnostics), default=0.0)
+        ),
+        "projection_minimum_weight": float(
+            min((item["minimum_weight"] for item in diagnostics), default=0.0)
+        ),
+    }
+
+
+def _select_svs_star_L(
+    points: np.ndarray,
+    K: int,
+    *,
+    random_state: int | None,
+    center_cache: MutableMapping[int, tuple[np.ndarray, np.ndarray, list[str]]],
+    hull_solver_tolerance: float,
+    hull_solver_max_iterations: int,
+) -> tuple[dict[str, Any], list[str]]:
+    """Select L from the stability of SVS*'s own SPA-on-centers vertices.
+
+    This is the scalable large-K alternative to borrowing L from exhaustive
+    SVS.  It retains MixedSCORE's adjacent-L stability criterion and hull-fit
+    normalization, but evaluates the vertices actually used by SVS*.
+    """
+
+    if points.shape[0] < K + 1:
+        raise VertexHuntingError("adaptive SVS* needs at least K+1 observations")
+    centers_k, _, warnings = _centers_for_L(
+        points, K, random_state, center_cache
+    )
+    _, selected_k, _ = _spa_current(centers_k, K, mutate_signs=False)
+    previous_vertices = centers_k[selected_k]
+    fits: list[dict[str, Any]] = []
+    projection_solve_count = 0
+    projection_iterations_total = 0
+    for candidate_L in range(K + 1, min(3 * K, points.shape[0]) + 1):
+        candidate_started = perf_counter()
+        centers, labels, center_warnings = _centers_for_L(
+            points, candidate_L, random_state, center_cache
+        )
+        warnings.extend(center_warnings)
+        _, selected, _ = _spa_current(centers, K, mutate_signs=False)
+        vertices = centers[selected]
+        objective, projection = _max_distance_to_convex_hull_qp(
+            centers,
+            selected,
+            tolerance=hull_solver_tolerance,
+            max_iterations=hull_solver_max_iterations,
+        )
+        projection_solve_count += int(projection["projection_solve_count"])
+        projection_iterations_total += int(
+            projection["projection_iterations_total"]
+        )
+        stability = _permutation_stability(vertices, previous_vertices)
+        delta = stability / (1.0 + objective)
+        condition, smallest = _vertex_diagnostics(vertices)
+        fits.append(
+            {
+                "L": candidate_L,
+                "vertices": vertices,
+                "selected": selected,
+                "centers": centers,
+                "labels": labels,
+                "objective": objective,
+                "stability": stability,
+                "delta": delta,
+                "condition_number": condition,
+                "smallest_singular_value": smallest,
+                "projection": projection,
+                "runtime_seconds": perf_counter() - candidate_started,
+            }
+        )
+        previous_vertices = vertices
+    chosen = min(fits, key=lambda item: item["delta"])
+    details = {
+        "L": int(chosen["L"]),
+        "L_mode": "svs_star_stability",
+        "L_selection_strategy": "native_svs_star_SPA_vertex_stability",
+        "simplex_fitting_objective": float(chosen["objective"]),
+        "stability_score": float(chosen["delta"]),
+        "stability_assignment": "exact_sorted_row_sum_bottleneck",
+        "hull_projection_method": "SLSQP_simplex_constrained_least_squares",
+        "hull_solver_tolerance": float(hull_solver_tolerance),
+        "hull_solver_max_iterations": int(hull_solver_max_iterations),
+        "projection_solve_count": int(projection_solve_count),
+        "projection_iterations_total": int(projection_iterations_total),
+        "candidate_simplexes_evaluated": 0,
+        "candidate_L_details": [
+            {
+                "L": int(item["L"]),
+                "simplex_fitting_objective": float(item["objective"]),
+                "raw_stability": float(item["stability"]),
+                "stability_score": float(item["delta"]),
+                "selected_center_indices": item["selected"].tolist(),
+                "condition_number": float(item["condition_number"]),
+                "smallest_singular_value": float(
+                    item["smallest_singular_value"]
+                ),
+                "runtime_seconds": float(item["runtime_seconds"]),
+                **item["projection"],
+            }
+            for item in fits
+        ],
+        "source_commit_for_candidate_L_range_and_stability": MIXEDSCORE_COMMIT,
+    }
+    return details, warnings
 
 
 def _run_svs(
@@ -413,6 +618,8 @@ def _run_svs_star(
     center_cache: MutableMapping[int, tuple[np.ndarray, np.ndarray, list[str]]],
     max_simplexes: int,
     bypass_kmeans: bool,
+    hull_solver_tolerance: float,
+    hull_solver_max_iterations: int,
     preselected_svs_details: dict[str, Any] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[str, Any], list[str]]:
     adaptive_details: dict[str, Any] = {}
@@ -439,6 +646,17 @@ def _run_svs_star(
         )
         selected_L = int(adaptive_details["L"])
         effective_mode = "svs_star_L_selected_by_svs"
+    elif L_mode == "svs_star_stability":
+        adaptive_details, warnings = _select_svs_star_L(
+            points,
+            K,
+            random_state=random_state,
+            center_cache=center_cache,
+            hull_solver_tolerance=hull_solver_tolerance,
+            hull_solver_max_iterations=hull_solver_max_iterations,
+        )
+        selected_L = int(adaptive_details["L"])
+        effective_mode = "svs_star_L_selected_by_native_SPA_stability"
     elif L_mode == "fixed":
         if L is None:
             raise VertexHuntingError("fixed SVS* requires L")
@@ -467,10 +685,15 @@ def _run_svs_star(
         "effective_L_mode": effective_mode,
         "second_stage": "spa_current_on_shared_kmeans_centers",
         "bypass_kmeans": bool(bypass_kmeans),
-        "source_commit_for_L_selection": MIXEDSCORE_COMMIT,
+        "source_commit_for_L_selection": (
+            MIXEDSCORE_COMMIT if L_mode == "mixedscore_adaptive" else None
+        ),
     }
     if adaptive_details:
-        details["svs_L_selection"] = adaptive_details
+        details["L_selection"] = adaptive_details
+        if L_mode == "mixedscore_adaptive":
+            # Retain the historical nested key for existing result readers.
+            details["svs_L_selection"] = adaptive_details
     return vertices, selected, centers, labels, details, warnings
 
 
@@ -591,6 +814,17 @@ def vertex_hunt(
                 )
             else:
                 bypass = bool(method_parameters.pop("bypass_kmeans", False))
+                hull_solver_tolerance = float(
+                    method_parameters.pop("hull_solver_tolerance", 1e-10)
+                )
+                hull_solver_max_iterations = int(
+                    method_parameters.pop("hull_solver_max_iterations", 500)
+                )
+                if hull_solver_tolerance <= 0 or hull_solver_max_iterations < 1:
+                    raise VertexHuntingError(
+                        "SVS* hull solver requires a positive tolerance and "
+                        "at least one iteration"
+                    )
                 preselected_svs_details = method_parameters.pop(
                     "preselected_svs_details", None
                 )
@@ -603,6 +837,8 @@ def vertex_hunt(
                     center_cache=center_cache,
                     max_simplexes=max_simplexes,
                     bypass_kmeans=bypass,
+                    hull_solver_tolerance=hull_solver_tolerance,
+                    hull_solver_max_iterations=hull_solver_max_iterations,
                     preselected_svs_details=preselected_svs_details,
                 )
                 if bypass:

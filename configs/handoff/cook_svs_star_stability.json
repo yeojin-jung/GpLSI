@@ -1,0 +1,92 @@
+{
+  "extends": "cook_production.json",
+  "name": "handoff_cook_svs_star_stability",
+  "description": "SVS* with its own scalable L selection (native SPA-vertex stability) where exhaustive SVS is unavailable (K = 8, 10) plus K = 4 as a bridge.",
+  "grid": {
+    "K": [
+      4,
+      8,
+      10
+    ],
+    "seed": [
+      26090501
+    ]
+  },
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "vertex_hunters": [
+        "svs_star"
+      ]
+    }
+  ],
+  "baselines": [],
+  "vertex_parameters": {
+    "svs_star": {
+      "L_mode": "svs_star_stability",
+      "hull_solver_tolerance": 1e-10,
+      "hull_solver_max_iterations": 500
+    }
+  },
+  "unavailable": [],
+  "parts": {
+    "P0_raw": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P0_raw"
+          ],
+          "vertex_hunters": [
+            "svs_star"
+          ]
+        }
+      ]
+    },
+    "P1_tran_alpha_0p005": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p005"
+          ],
+          "vertex_hunters": [
+            "svs_star"
+          ]
+        }
+      ]
+    },
+    "P2_ke_weighted": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P2_ke_weighted"
+          ],
+          "vertex_hunters": [
+            "svs_star"
+          ]
+        }
+      ]
+    },
+    "P3_tran_then_ke": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P3_tran_then_ke"
+          ],
+          "vertex_hunters": [
+            "svs_star"
+          ]
+        }
+      ]
+    }
+  }
+}

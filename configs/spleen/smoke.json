@@ -1,0 +1,37 @@
+{
+  "extends": "production.json",
+  "name": "spleen_smoke",
+  "description": "Wiring check of the paper protocol: 80 graph-stratified rows, one seed, one penalty value, one graph-SVD iteration, every method in one job. Not a scientific result.",
+  "subset": {
+    "n": 80,
+    "strategy": "graph_stratified"
+  },
+  "grid": {
+    "K": [
+      5
+    ],
+    "seed": [
+      1
+    ]
+  },
+  "spectral": {
+    "grid_len": 1,
+    "maxiter": 1,
+    "eps": 0.0001,
+    "nfolds": 3
+  },
+  "recovery": {
+    "poisson_max_iter": 200
+  },
+  "spatial_lda_parameters": {
+    "max_primal_dual_iter": 400,
+    "max_dirichlet_iter": 20,
+    "max_dirichlet_ls_iter": 10,
+    "max_lda_iter": 2,
+    "max_admm_iter": 5,
+    "n_iters": 1,
+    "n_parallel_processes": 1,
+    "primal_tol": 0.001
+  },
+  "parts": {}
+}

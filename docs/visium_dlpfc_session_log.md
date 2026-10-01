@@ -1,5 +1,10 @@
 # Session log: DLPFC ablation runs on DSI (2026-09-27)
 
+> Recorded on branch `yeojin-exp` before the merge with the handoff code. Paths refer to that
+> layout: `scripts/visium_dlpfc/` is now `scripts/analysis/dlpfc/` (plus `scripts/run_experiment.py`
+> and `scripts/refit_A.py`), `configs/visium_dlpfc/` is `configs/dlpfc/ablation/`, and `results/visium_dlpfc/`
+> is `results/dlpfc/`. See `docs/visium_dlpfc_ablation.md` §10–11.
+
 This is a chronological record of the Claude Code session that ran the first real
 ablation jobs, so work can resume after the session is closed.
 

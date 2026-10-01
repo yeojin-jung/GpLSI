@@ -1,0 +1,62 @@
+{
+  "description": "Visium DLPFC ablation (docs/visium_dlpfc_ablation.md). Settings reproduce the runs of 2026-09-28: lambda re-selected at every graph-SVD iteration, 'current' initialization, fixed-L SVS.",
+  "output_root": "results/dlpfc",
+  "dataset": {
+    "name": "dlpfc",
+    "file": "data/dlpfc/visium_dlpfc.h5ad",
+    "graph_k": 6,
+    "detection_fraction": 0.01,
+    "reference_panel_size": 500
+  },
+  "heldout_fraction": 0.2,
+  "grid": {
+    "section": [
+      "151507",
+      "151669",
+      "151673"
+    ],
+    "K": [
+      7
+    ],
+    "panel_size": [
+      2000
+    ],
+    "retained_fraction": [
+      1.0
+    ],
+    "seed": [
+      26090401,
+      26090402,
+      26090403
+    ]
+  },
+  "spectral": {
+    "lamb_start": 0.0001,
+    "step_size": 1.2,
+    "grid_len": 29,
+    "maxiter": 50,
+    "eps": 1e-05,
+    "nfolds": 5,
+    "n_jobs": 1,
+    "cv_fold_mode": "all",
+    "lambda_selection_mode": "cv_each_iteration",
+    "initialization": "current"
+  },
+  "A_recoveries": [
+    "A_current",
+    "A_full_L2"
+  ],
+  "recovery": {
+    "poisson_max_iter": 2000,
+    "poisson_tolerance": 1e-08,
+    "poisson_start": "A_current"
+  },
+  "posthoc_refit": {
+    "note": "A_full_Pois is refit afterwards from each saved W by scripts/refit_A.py. The pooled start is used because an A_current start stalls (gap 2.3e-3 after 2000 iterations on 151673): exact zeros regrow only geometrically under multiplicative EM. Fits above the 1e-8 tolerance are reported as near-converged with the achieved normalized gap.",
+    "A_recovery": "A_full_Pois",
+    "poisson_start": "pooled",
+    "poisson_max_iter": 1500,
+    "poisson_tolerance": 1e-08
+  },
+  "vertex_parameters": {}
+}

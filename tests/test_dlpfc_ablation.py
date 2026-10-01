@@ -3,8 +3,8 @@ from scipy.sparse import csr_matrix
 
 from gplsi.real_experiment import GeometryFit, recover_A_for_geometry
 from gplsi.recovery import refit_A_current
-from gplsi_spatial_benchmark.panels import panel_indices, rank_features_by_dispersion
-from gplsi_spatial_benchmark.splits import thin_and_split_sparse_counts
+from gplsi.pipeline.panels import panel_indices, rank_features_by_dispersion
+from gplsi.pipeline.splits import thin_and_split_sparse_counts
 
 
 def _counts(seed=0, n=60, p=40):
@@ -107,33 +107,3 @@ def test_gram_form_full_l2_matches_residual_form():
         np.testing.assert_allclose(fast.A_hat, _reference_full_l2(W, X, start), atol=1e-9)
         residual = np.sum((W @ fast.A_hat - X) ** 2)
         np.testing.assert_allclose(fast.objective_history[-1], residual, rtol=1e-10)
-
-
-def _load_script(name):
-    import importlib.util
-    from pathlib import Path
-
-    path = Path(__file__).resolve().parents[1] / "scripts" / "visium_dlpfc" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(f"dlpfc_{name}", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def test_poisson_refit_takes_W_from_any_recovery_of_a_geometry():
-    geometry_sources = _load_script("refit_poisson").geometry_sources
-    results = [
-        {"method": "gplsi_document__P0_raw__spa_current__A_current"},
-        {"method": "gplsi_document__P0_raw__spa_current__A_full_L2"},
-        {"method": "gplsi_anchor__P0_raw__spa_current__A_current"},  # failed: no W saved
-        {"method": "gplsi_anchor__P0_raw__spa_current__A_full_L2"},
-        {"method": "gplsi_document__P2_ke_weighted__palm__A_current"},  # failed at geometry: no W at all
-        {"method": "gplsi_document__P2_ke_weighted__palm__A_full_L2"},
-        {"method": "topicscore_raw"},
-    ]
-    saved = {"W_0", "A_0", "W_1", "A_1", "W_3", "A_3", "W_6", "A_6"}
-    assert geometry_sources(results, saved) == [
-        ("gplsi_document__P0_raw__spa_current", 0, 0),
-        ("gplsi_anchor__P0_raw__spa_current", 3, 2),
-        ("gplsi_document__P2_ke_weighted__palm", None, 4),
-    ]

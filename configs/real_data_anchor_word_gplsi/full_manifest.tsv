@@ -1,6 +1,0 @@
-batch_index	config	task_count	array_first	array_last	dataset	group
-0	configs/real_data_anchor_word_gplsi/crc/full.json	60	0	59	crc	all_regions
-1	configs/real_data_anchor_word_gplsi/spleen/full_BALBc-1.json	40	60	99	spleen	BALBc-1
-2	configs/real_data_anchor_word_gplsi/spleen/full_BALBc-2.json	40	100	139	spleen	BALBc-2
-3	configs/real_data_anchor_word_gplsi/spleen/full_BALBc-3.json	40	140	179	spleen	BALBc-3
-4	configs/real_data_anchor_word_gplsi/cook/full.json	40	180	219	cook	all_cuisines

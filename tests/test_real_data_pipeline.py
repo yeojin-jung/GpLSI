@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import inspect
 from pathlib import Path
 
@@ -19,13 +18,13 @@ ROOT = Path(__file__).resolve().parents[1]
 def _load_available_real_data(dataset: str, **kwargs) -> RealDataBundle:
     """Skip only unavailable dataset files, while retaining contract failures."""
     relative_files = {
-        "crc": ["stanford-crc/charville_labels.csv"],
+        "crc": ["crc/charville_labels.csv"],
         "spleen": [f"spleen/dataset/{name}.pkl" for name in ("merged_D", "merged_coord", "merged_data")],
-        "cook": [f"whats-cooking/dataset/{name}" for name in ("train.json", "ingredient_mapping.pkl", "processed_edge_df.pkl")],
+        "cook": [f"cook/dataset/{name}" for name in ("train.json", "ingredient_mapping.pkl", "processed_edge_df.pkl")],
     }
     paths = [DATA_ROOT / relative for relative in relative_files[dataset]]
     if dataset == "crc":
-        paths.extend((DATA_ROOT / "stanford-crc/output/output_3hop").glob("*.csv"))
+        paths.extend((DATA_ROOT / "crc/output/output_3hop").glob("*.csv"))
     for path in paths:
         if not path.is_file():
             pytest.skip(f"Optional {dataset} dataset file is unavailable: {path}; set GPLSI_DATA_ROOT")
@@ -176,25 +175,6 @@ def test_audited_graph_cv_scores_every_nonempty_fold() -> None:
     )
 
 
-def test_smoke_configs_cover_named_methods_and_both_A_recoveries() -> None:
-    for dataset in ("crc", "spleen", "cook"):
-        config = json.loads(
-            (ROOT / "configs/real_data_anchor_word_gplsi" / dataset / "smoke.json").read_text()
-        )
-        assert config["vertex_hunters"] == [
-            "spa_current",
-            "svs",
-            "svs_star",
-            "pp_spa",
-            "palm",
-            "palm_accelerated",
-        ]
-        assert config["A_recoveries"] == ["A_current", "A_full_Pois"]
-        assert {"plsi", "topicscore_raw", "lda", "spatial_lda"}.issubset(config["baselines"])
-        assert config["graph"]["nfolds"] == 3
-        assert config["graph"]["n_jobs"] == 1
-
-
 def test_count_thinning_is_exact_and_deterministic() -> None:
     bundle = _load_available_real_data("cook").graph_stratified_subset(80, seed=26090501)
     train_a, test_a = bundle.binomial_thinning(0.2, seed=991)
@@ -206,50 +186,29 @@ def test_count_thinning_is_exact_and_deterministic() -> None:
     assert train_a.metadata["heldout_D_sha256"]
 
 
-def test_full_manifest_is_frozen_and_skips_quadratic_memory_pp_spa() -> None:
-    manifest_path = ROOT / "configs/real_data_anchor_word_gplsi/full_manifest.tsv"
-    manifest = pd.read_csv(manifest_path, sep="\t")
-    assert manifest["task_count"].sum() == 220
-    assert manifest["array_first"].tolist() == [0, 60, 100, 140, 180]
-    assert manifest["array_last"].tolist() == [59, 99, 139, 179, 219]
-    expected_K = {
-        "crc": [1, 2, 3, 4, 5, 6],
-        "spleen": [3, 5, 7, 10],
-        "cook": [5, 6, 7, 8],
-    }
-    expected_primary_K = {"crc": 6, "spleen": 5, "cook": 7}
-    for relative, task_count in zip(manifest["config"], manifest["task_count"]):
-        config = json.loads((ROOT / relative).read_text())
-        assert config["subset_n"] is None
-        assert config["thinning_test_fraction"] == 0.2
-        assert len(config["seeds"]) == 10
-        assert config["K_values"] == expected_K[config["dataset"]]
-        assert config["primary_K"] == expected_primary_K[config["dataset"]]
-        assert task_count == len(config["K_values"]) * len(config["seeds"])
-        assert config["graph"]["grid_len"] == 29
-        assert config["graph"]["maxiter"] == 50
-        assert config["vertex_hunters"] == [
-            "spa_current",
-            "svs",
-            "svs_star",
-            "palm",
-            "palm_accelerated",
-        ]
-        assert (
-            config["vertex_parameters"]["svs"]["L_mode"]
-            == "mixedscore_adaptive"
-        )
+def test_handoff_configs_keep_the_2026_09_15_protocol() -> None:
+    from gplsi.pipeline import load_config
+
+    expected_K = {"crc": [1, 2, 3, 4, 5, 6], "spleen": [3, 4, 5, 7, 10], "cook_v2": [4, 5, 6, 7, 8, 10]}
+    for relative in ("handoff/crc_production.json", "handoff/spleen_production_joint.json", "handoff/cook_production.json"):
+        config = load_config(ROOT / "configs" / relative)
+        assert config["grid"]["K"] == expected_K[config["dataset"]["name"]]
+        assert config["heldout_fraction"] == 0.2 and "subset" not in config
+        spectral = config["spectral"]
+        assert spectral["grid_len"] == 29 and spectral["maxiter"] == 50
+        assert spectral["lambda_selection_mode"] == "cv_once"
+        assert spectral["initialization"] == "weighted_debiased_mean_N_approx"
+        assert spectral["cv_fold_mode"] == "all"
+        assert config["recovery"]["poisson_start"] == "pooled"
+        assert config["A_recoveries"] == ["A_current", "A_full_Pois"]
+        (block,) = config["gplsi"]
+        assert block["vertex_hunters"] == ["spa_current", "svs", "svs_star", "palm", "palm_accelerated"]
+        assert config["vertex_parameters"]["svs"]["L_mode"] == "mixedscore_adaptive"
         assert "pp_spa" not in config["vertex_parameters"]
-        for method, acceleration in (
-            ("palm", "none"),
-            ("palm_accelerated", "monotone_restart"),
-        ):
+        for method in ("palm", "palm_accelerated"):
             parameters = config["vertex_parameters"][method]
-            assert parameters["lambda_"] == 1.0
-            assert parameters["max_iterations"] == 300
+            assert parameters["lambda_"] == 1.0 and parameters["max_iterations"] == 300
             assert parameters["hull_reduction"] == "none"
-            assert "acceleration" not in parameters
-        assert config["full_run_requires_explicit_submission_approval"] is True
 
 
 def test_unsupervised_fit_interfaces_do_not_accept_downstream_labels() -> None:

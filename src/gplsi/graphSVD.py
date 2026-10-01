@@ -31,6 +31,7 @@ def graphSVD(
     nfolds: int = 5,
     cv_fold_mode: str = "legacy_first_three",
     n_jobs: int = 3,
+    lambda_selection_mode: str = "cv_each_iteration",
 ):
     """
     Graph-aligned SVD (graphSVD) for GpLSI.
@@ -125,6 +126,13 @@ def graphSVD(
         approximation and a separate SVD of X for U_init.
         If False, just run truncated SVD on X for all factors.
 
+    lambda_selection_mode : {"cv_each_iteration", "cv_once"}
+        ``"cv_each_iteration"`` preserves the historical behavior: rerun graph
+        cross-validation after every update of the right singular subspace.
+        ``"cv_once"`` runs the same cross-validation exactly once, using the
+        initialized right singular subspace, and holds the selected lambda fixed
+        for every alternating update in this graph-SVD fit.
+
     Returns
     -------
     U : np.ndarray, shape (n_samples, K)
@@ -152,8 +160,10 @@ def graphSVD(
         Selected regularization parameter (lambda) chosen during update_U_tilde
         (e.g. by cross-validation over folds).
 
-    lambd_errs : list[float]
-        List of cross-validation errors for each lambda in the grid.
+    lambd_errs : dict
+        Fold-level and summed cross-validation errors for each lambda in the
+        grid. In ``"cv_once"`` mode these are the sole selection diagnostics;
+        in historical mode they are from the final outer iteration.
 
     niter : int
         Number of outer iterations performed.
@@ -165,13 +175,24 @@ def graphSVD(
         2. Construct a grid of lambda values (lambd_grid).
         3. Optionally do an SVD-based initialization (initialize=True).
         4. Alternate between:
-            - update_U_tilde (graph-regularized U, with CV over lambda)
+            - update_U_tilde (graph-regularized U, optionally with CV over lambda)
             - update_V_L_tilde (update V, L given U)
       until the reconstruction stabilizes.
 
     - Convergence criterion uses a random subsample of up to 1000 rows to
       measure the change in P_U X P_V, where P_U and P_V are projection matrices.
     """
+    valid_lambda_selection_modes = {"cv_each_iteration", "cv_once"}
+    if lambda_selection_mode not in valid_lambda_selection_modes:
+        raise ValueError(
+            f"unknown lambda_selection_mode={lambda_selection_mode!r}; expected one of "
+            f"{sorted(valid_lambda_selection_modes)}"
+        )
+    if maxiter < 1:
+        raise ValueError("maxiter must be at least 1")
+    if not np.isfinite(eps) or eps < 0:
+        raise ValueError("eps must be finite and nonnegative")
+
     n = X.shape[0]
     rng = None if random_state is None else np.random.default_rng(random_state)
     _, folds, G, _ = get_folds_disconnected_G(edge_df, nfolds=nfolds, rng=rng)
@@ -231,7 +252,7 @@ def graphSVD(
     else:
         raise ValueError(f"unknown initialization mode: {initialization!r}")
 
-    score = 1
+    score = float("inf")
     niter = 0
     score_history = []
     lambd_history = []
@@ -240,6 +261,26 @@ def graphSVD(
     U_hat_history = []
     V_hat_history = []
     singular_value_history = []
+
+    # Select before the first alternating update so CV is based on the same
+    # initialized V that the historical implementation uses on iteration zero.
+    # Keeping selection separate from fitting makes it impossible for later V
+    # updates to silently trigger another CV pass in ``cv_once`` mode.
+    if lambda_selection_mode == "cv_once":
+        lambd, lambd_errs = select_lambda_by_cv(
+            X,
+            V,
+            L,
+            G,
+            weights,
+            nonempty_folds,
+            lambd_grid,
+            cv_fold_mode=cv_fold_mode,
+            n_jobs=n_jobs,
+        )
+        cv_history.append(lambd_errs)
+        print(f"Optimal lambda is {lambd}...")
+
     while score > eps and niter < maxiter:
         if n > 1000:
             idx = (
@@ -254,20 +295,34 @@ def graphSVD(
         P_U_old = np.dot(U_samp, U_samp.T)
         P_V_old = np.dot(V, V.T)
         X_hat_old = (P_U_old @ X[idx,:]) @ P_V_old
-        if return_metadata:
-            U, lambd, lambd_errs, U_bar = update_U_tilde(
-                X, V, L, G, weights, nonempty_folds, lambd_grid,
-                return_unorthogonalized=True,
-                cv_fold_mode=cv_fold_mode,
-                n_jobs=n_jobs,
-            )
-            U_bar_history.append(U_bar.copy())
+        if lambda_selection_mode == "cv_once":
+            if return_metadata:
+                U, U_bar = update_U_tilde_fixed_lambda(
+                    X,
+                    V,
+                    weights,
+                    lambd,
+                    return_unorthogonalized=True,
+                )
+                U_bar_history.append(U_bar.copy())
+            else:
+                U = update_U_tilde_fixed_lambda(X, V, weights, lambd)
         else:
-            U, lambd, lambd_errs = update_U_tilde(
-                X, V, L, G, weights, nonempty_folds, lambd_grid,
-                cv_fold_mode=cv_fold_mode,
-                n_jobs=n_jobs,
-            )
+            if return_metadata:
+                U, lambd, lambd_errs, U_bar = update_U_tilde(
+                    X, V, L, G, weights, nonempty_folds, lambd_grid,
+                    return_unorthogonalized=True,
+                    cv_fold_mode=cv_fold_mode,
+                    n_jobs=n_jobs,
+                )
+                U_bar_history.append(U_bar.copy())
+            else:
+                U, lambd, lambd_errs = update_U_tilde(
+                    X, V, L, G, weights, nonempty_folds, lambd_grid,
+                    cv_fold_mode=cv_fold_mode,
+                    n_jobs=n_jobs,
+                )
+            cv_history.append(lambd_errs)
         V, L = update_V_L_tilde(X, U)
         if return_metadata:
             U_hat_history.append(U.copy())
@@ -280,7 +335,6 @@ def graphSVD(
         score = norm(X_hat-X_hat_old)/n
         score_history.append(float(score))
         lambd_history.append(float(lambd))
-        cv_history.append(lambd_errs)
         niter += 1
         if verbose == 1:
             print(f"Error is {score}")
@@ -306,6 +360,14 @@ def graphSVD(
         "nfolds_nonempty": int(len(nonempty_folds)),
         "cv_fold_mode": cv_fold_mode,
         "n_jobs": int(n_jobs),
+        "lambda_selection_mode": lambda_selection_mode,
+        "lambda_selection_basis": (
+            "initial_V_before_first_alternating_update"
+            if lambda_selection_mode == "cv_once"
+            else "current_V_at_each_alternating_update"
+        ),
+        "lambda_cv_evaluations": int(len(cv_history)),
+        "lambda_fixed_across_iterations": lambda_selection_mode == "cv_once",
         "debias_correction": None
         if debias_correction is None
         else np.asarray(debias_correction, dtype=float),
@@ -382,10 +444,45 @@ def update_U_tilde(
     cv_fold_mode="legacy_first_three",
     n_jobs=3,
 ):
-    lambds_best = []
+    lambd_cv, lambd_errs = select_lambda_by_cv(
+        X,
+        V,
+        L,
+        G,
+        weights,
+        folds,
+        lambd_grid,
+        cv_fold_mode=cv_fold_mode,
+        n_jobs=n_jobs,
+    )
+    fitted = update_U_tilde_fixed_lambda(
+        X,
+        V,
+        weights,
+        lambd_cv,
+        return_unorthogonalized=return_unorthogonalized,
+    )
+    print(f"Optimal lambda is {lambd_cv}...")
+    if return_unorthogonalized:
+        U_hat, U_tilde = fitted
+        return U_hat, lambd_cv, lambd_errs, U_tilde
+    return fitted, lambd_cv, lambd_errs
+
+
+def select_lambda_by_cv(
+    X,
+    V,
+    L,
+    G,
+    weights,
+    folds,
+    lambd_grid,
+    cv_fold_mode="legacy_first_three",
+    n_jobs=3,
+):
+    """Select one graph penalty from held-out-node reconstruction error."""
+
     lambd_errs = {"fold_errors": {}, "final_errors": []}
-    L_inv = 1/np.diag(L)
-    XVL_inv = X @ V
 
     tasks = [(j, folds, X, V, L, G, weights, lambd_grid) for j in sorted(folds)]
     if n_jobs == 1:
@@ -396,9 +493,8 @@ def update_U_tilde(
     else:
         raise ValueError("n_jobs must be at least 1")
     for result in results:
-        j, errs, _, lambd_best = result
+        j, errs, _, _ = result
         lambd_errs["fold_errors"][j] = errs
-        lambds_best.append(lambd_best)
 
     fold_ids = sorted(lambd_errs["fold_errors"])
     if cv_fold_mode == "legacy_first_three":
@@ -416,16 +512,32 @@ def update_U_tilde(
     lambd_errs["summed_cv_errors"] = np.asarray(cv_errs, dtype=float).tolist()
     lambd_cv = lambd_grid[np.argmin(cv_errs)]
 
-    ssnal = pycvxcluster.pycvxcluster.SSNAL(gamma=lambd_cv, verbose=0)
-    ssnal.fit(X=XVL_inv, weight_matrix=weights, save_centers=True)
+    return lambd_cv, lambd_errs
+
+
+def update_U_tilde_fixed_lambda(
+    X,
+    V,
+    weights,
+    lambd,
+    return_unorthogonalized=False,
+):
+    """Update the graph-regularized left factor without running CV."""
+
+    lambd = float(lambd)
+    if not np.isfinite(lambd) or lambd < 0:
+        raise ValueError("lambd must be finite and nonnegative")
+    XV = X @ V
+
+    ssnal = pycvxcluster.pycvxcluster.SSNAL(gamma=lambd, verbose=0)
+    ssnal.fit(X=XV, weight_matrix=weights, save_centers=True)
     U_tilde = ssnal.centers_.T
 
     U_hat, _, _ = svd(U_tilde, full_matrices=False)
 
-    print(f"Optimal lambda is {lambd_cv}...")
     if return_unorthogonalized:
-        return U_hat, lambd_cv, lambd_errs, U_tilde
-    return U_hat, lambd_cv, lambd_errs
+        return U_hat, U_tilde
+    return U_hat
 
 
 def update_V_L_tilde(X, U_tilde):

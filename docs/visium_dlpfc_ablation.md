@@ -22,7 +22,7 @@ Neuroscience* 2021), the same cohort as §3.1 of `GPLSI_experiments.pdf`.
 
 | Input | Source | Local copy |
 |---|---|---|
-| Raw UMI counts, filtered in-tissue spots | `https://spatial-dlpfc.s3.us-east-2.amazonaws.com/h5/<id>_filtered_feature_bc_matrix.h5` | `data/interim/visium_dlpfc/raw/` |
+| Raw UMI counts, filtered in-tissue spots | `https://spatial-dlpfc.s3.us-east-2.amazonaws.com/h5/<id>_filtered_feature_bc_matrix.h5` | `data/dlpfc/raw/` |
 | Spot positions (`array_row`, `array_col`, pixel row/col) | `LieberInstitute/HumanPilot/10X/<id>/tissue_positions_list.txt` | same |
 | Manual layer labels | `ground_truth` column of `HumanPilot/outputs/SpatialDE_clustering/cluster_labels_<id>.csv` (the `layer_guess_reordered` annotation distributed by spatialLIBD) | same |
 
@@ -38,8 +38,8 @@ spatialLIBD is not installed locally; the resulting cohort matches the PDF exact
 Totals: 47,681 spots × 33,538 genes, 82,659,007 nonzero entries, 165,059,561 UMIs;
 47,329 labeled spots (352 blank).
 
-**One-time preparation** — `scripts/visium_dlpfc/prepare_data.py` →
-`data/processed/visium_dlpfc/visium_dlpfc.h5ad` (+ `summary.json`):
+**One-time preparation** — `scripts/data/prepare_dlpfc.py` →
+`data/dlpfc/visium_dlpfc.h5ad` (+ `summary.json`):
 
 * `X`: raw integer UMIs, all 33,538 genes, CSR. No normalization, QC filter, or gene
   selection at this stage (genes are chosen per task, §2).
@@ -56,7 +56,7 @@ Totals: 47,681 spots × 33,538 genes, 82,659,007 nonzero entries, 165,059,561 UM
 ## 2. Per-task processing
 
 A task is (design, section $u$, $K$, panel size $p$, retained fraction $r$, seed $s$).
-`prepare_task_data` in `src/gplsi_spatial_benchmark/ablation_runner.py` performs every
+`_prepare_dlpfc` in `src/gplsi/pipeline/datasets.py` performs every
 step deterministically from the seed and training counts, so a later recovery-only
 refit (Poisson, §4) rebuilds identical data.
 
@@ -108,7 +108,7 @@ $Z = \mathrm{diag}(\hat\eta_J)^{-1}\mathrm{diag}(r_J)^{-1}\hat V\hat\Lambda$
 ## 4. Ablation table
 
 Three dimensions. Names in the first column are the strings used in the config
-(`configs/visium_dlpfc/ablation.json`) and in result method names
+(`configs/dlpfc/ablation/*.json`) and in result method names
 `gplsi_document__<preprocessing>__<hunter>__<A>`.
 
 ### Dimension A — estimating the topic-gene matrix $A$ (given $\hat W$)
@@ -117,7 +117,7 @@ Three dimensions. Names in the first column are the strings used in the config
 |---|---|---|---|
 | `A_current` (**original GpLSI**) | Least squares, then row-wise projection onto the simplex. Unweighted in spots; uses frequencies. Projecting the unconstrained solution is not the same as solving the constrained problem unless $\hat W^\top\hat W\propto I$. | $\hat A = \Pi_\Delta\big[(\hat W^\top\hat W)^{-1}\hat W^\top X\big]$ (rows projected separately) | `refit_A_current` (`gplsi/recovery.py`) |
 | `A_full_L2` | Simplex-**constrained** least squares, the actual Euclidean minimizer | $\hat A = \arg\min_{A:\,A_{k\cdot}\in\Delta}\lVert \hat W A - X\rVert_F^2$; projected gradient, step $1/(2\lVert\hat W\rVert_2^2)$ with backtracking, warm start `A_current`, stop when relative change $\le10^{-8}$ (≤ 2,000 iterations) | `refit_A_full_l2` (`gplsi/recovery.py`); branch added in `recover_A_for_geometry` |
-| `A_full_Pois` | Poisson (equivalently multinomial) maximum likelihood on training **counts**. Spots are weighted by depth $N_i$, and the loss is log-likelihood instead of squared error. | $\hat A = \arg\min_{A:\,A_{k\cdot}\in\Delta}\sum_{ij}\big[N_i(\hat WA)_{ij} - D_{ij}\log(\hat WA)_{ij}\big]$. Since rows of $\hat W$ and $A$ sum to 1, $\sum_j N_i(\hat WA)_{ij}=N_i$ is constant, so this is the multinomial MLE. EM update: $s_{kj}=\sum_i \hat W_{ik}D_{ij}/(\hat WA)_{ij}$, $A_{kj}\leftarrow A_{kj}s_{kj}/\sum_{j'}A_{kj'}s_{kj'}$. Convergence certificate (Frank–Wolfe/KKT gap): $G=\sum_k[\max_j s_{kj}-\sum_j A_{kj}s_{kj}]$, converged when $G/\sum_{ij}D_{ij}\le10^{-8}$. | `refit_A_full_poisson` (`gplsi/recovery.py`, unchanged); run post hoc by `scripts/visium_dlpfc/refit_poisson.py` |
+| `A_full_Pois` | Poisson (equivalently multinomial) maximum likelihood on training **counts**. Spots are weighted by depth $N_i$, and the loss is log-likelihood instead of squared error. | $\hat A = \arg\min_{A:\,A_{k\cdot}\in\Delta}\sum_{ij}\big[N_i(\hat WA)_{ij} - D_{ij}\log(\hat WA)_{ij}\big]$. Since rows of $\hat W$ and $A$ sum to 1, $\sum_j N_i(\hat WA)_{ij}=N_i$ is constant, so this is the multinomial MLE. EM update: $s_{kj}=\sum_i \hat W_{ik}D_{ij}/(\hat WA)_{ij}$, $A_{kj}\leftarrow A_{kj}s_{kj}/\sum_{j'}A_{kj'}s_{kj'}$. Convergence certificate (Frank–Wolfe/KKT gap): $G=\sum_k[\max_j s_{kj}-\sum_j A_{kj}s_{kj}]$, converged when $G/\sum_{ij}D_{ij}\le10^{-8}$. | `refit_A_full_poisson` (`gplsi/recovery.py`, unchanged); run post hoc by `scripts/refit_A.py` (settings: `posthoc_refit` in `configs/dlpfc/ablation/base.json`) |
 
 ### Dimension B — vertex hunting on the rows of $\hat U$
 
@@ -141,7 +141,7 @@ them**. Dimension A always estimates $A$ on all $p$ panel genes.
 
 | Setting | Rule | Source |
 |---|---|---|
-| **C1 panel size** $p\in\{500,1000,2000,5000\}$ | Top-$p$ genes by training variance/mean among genes detected in ≥ 1% of spots (§2). **2,000 is the main setting** (§6). | `panel_indices`, `rank_features_by_dispersion` (`gplsi_spatial_benchmark/panels.py`); `panel_size` task column |
+| **C1 panel size** $p\in\{500,1000,2000,5000\}$ | Top-$p$ genes by training variance/mean among genes detected in ≥ 1% of spots (§2). **2,000 is the main setting** (§6). | `panel_indices`, `rank_features_by_dispersion` (`gplsi/pipeline/panels.py`); `panel_size` task column |
 | **C2** `P0_raw` (**original GpLSI**) | $J$ = all positive-frequency genes, $r_j=1$. | `PREPROCESSING_SPECS` (`gplsi/real_experiment.py`) → `preprocess_features` |
 | `P1_tran_alpha_0p005` | Tran threshold. With $\hat\eta_j=n^{-1}\sum_iX_{ij}$ and $\bar N=n^{-1}\sum_iN_i$, keep $j$ if $\hat\eta_j > \alpha\sqrt{\log\max(n,p)/(n\bar N)}$ with $\alpha=0.005$. If fewer than 10% survive, keep the top $\lceil0.1p\rceil$ by $\hat\eta_j$. Rows are not renormalized. | `select_feature_columns(method="tran_script_exact")` |
 | `P2_ke_weighted` | No threshold; Ke–Wang inverse-square-root frequency weighting $r_j=\hat\eta_j^{-1/2}$, which upweights low-frequency genes. | `frequency_weights(method="ke_empirical")` |
@@ -157,7 +157,7 @@ record `retained_feature_count` to check this.
 | `topicscore_raw` | Topic-SCORE (Ke & Wang) | SVD of $X\,\mathrm{diag}(\hat\eta)^{-1/2}$ → right singular vectors $\xi_1..\xi_K$; ratios $R_{jk}=\xi_{k+1}(j)/\xi_1(j)$; SPA on the ratio cloud; barycentric weights $\Pi$; $A_{\cdot j}\propto\sqrt{\hat\eta_j}\,\xi_1(j)\,\Pi_j$; then $W$ by simplex-constrained least squares (≤ 5,000 projected-gradient iterations). | `fit_topicscore_raw` (`gplsi/topicscore.py`) |
 | `topicscore_graph_denoised` | Topic-SCORE on GpLSI's graph-aligned factors | Same ratio/vertex/$A$/$W$ steps, using $\hat V,\hat\Lambda$ from step (b) (P0) instead of the raw SVD. | `fit_topicscore_graph_denoised` |
 | `lda` | Latent Dirichlet allocation | scikit-learn `LatentDirichletAllocation` (batch variational Bayes, default priors $1/K$, 10 passes) on integer training counts; $W$ = normalized document-topic posterior, $A$ = normalized topic-word pseudo-counts. | `fit_lda` (`gplsi/baselines.py`) |
-| `kl_nmf` | Nonnegative matrix factorization with KL (Poisson) loss | $\min_{\tilde W,\tilde H\ge0}\sum_{ij}\big[D_{ij}\log\frac{D_{ij}}{(\tilde W\tilde H)_{ij}} - D_{ij} + (\tilde W\tilde H)_{ij}\big]$; scikit-learn `NMF(beta_loss="kullback-leibler", solver="mu", init="nndsvda", max_iter=500)`. Then $A=\tilde H$ with rows normalized; $W=\tilde W$ rescaled by topic mass and rows normalized. The non-graph counterpart of `A_full_Pois`. | `fit_kl_nmf` (`gplsi_spatial_benchmark/methods.py`) |
+| `kl_nmf` | Nonnegative matrix factorization with KL (Poisson) loss | $\min_{\tilde W,\tilde H\ge0}\sum_{ij}\big[D_{ij}\log\frac{D_{ij}}{(\tilde W\tilde H)_{ij}} - D_{ij} + (\tilde W\tilde H)_{ij}\big]$; scikit-learn `NMF(beta_loss="kullback-leibler", solver="mu", init="nndsvda", max_iter=500)`. Then $A=\tilde H$ with rows normalized; $W=\tilde W$ rescaled by topic mass and rows normalized. The non-graph counterpart of `A_full_Pois`. | `fit_kl_nmf` (`gplsi/baselines.py`) |
 | `graph_kl_nmf` | KL-NMF with a graph-Laplacian penalty on $\tilde W$ | KL objective + $\gamma\,\mathrm{tr}(\tilde W^\top L\tilde W)$, $\gamma=0.25$, multiplicative updates (≤ 500 iterations). A matched spatial baseline written for this benchmark, not an external published method. | `fit_graph_kl_nmf` (same file) |
 | `spatial_lda` | Spatial-LDA (Chen et al. 2020, Calico) | LDA whose document-topic proportions are penalized toward spatial neighbours (difference penalty 0.25), fit by ADMM; vendored implementation. | `fit_spatial_lda` (`gplsi/baselines.py`), `utils/spatial_lda/` |
 
@@ -189,15 +189,15 @@ panel (§8).
 
 ## 7. Experimental designs (which cells are run)
 
-Defined under `designs` in `configs/visium_dlpfc/ablation.json`; manifests are written by
-`scripts/visium_dlpfc/make_tasks.py`. Seeds are 26090401–26090405, as in the PDF.
+One config per design in `configs/dlpfc/ablation/` (shared settings in `base.json`); the task grid is the
+config's `grid` (`python scripts/run_experiment.py configs/dlpfc/ablation/core.json --list`). Seeds are 26090401–26090405, as in the PDF.
 
 | Design | Dim. A | Dim. B | Dim. C | Other methods | Tasks (manifest) |
 |---|---|---|---|---|---|
-| `core` | `A_current`, `A_full_L2` (+ `A_full_Pois` post hoc) | all 6 | $p=2{,}000$ × P0–P3 | anchor GpLSI (P0/SPA) + all 6 baselines* | 151507, 151669, 151673 (one per donor) × 3 seeds, $K=7$, $r=1$ → **9** (`tasks_core.csv`) |
-| `panel` | same | SPA, SVS\*, accel. PALM | $p\in\{500,1000,2000,5000\}$ × {P0, P1} | raw Topic-SCORE, LDA, KL-NMF | 3 sections × 3 seeds × 4 sizes → **36** (`tasks_panel.csv`) |
+| `core` | `A_current`, `A_full_L2` (+ `A_full_Pois` post hoc) | all 6 | $p=2{,}000$ × P0–P3 | anchor GpLSI (P0/SPA) + all 6 baselines* | 151507, 151669, 151673 (one per donor) × 3 seeds, $K=7$, $r=1$ → **9** (`core.json`) |
+| `panel` | same | SPA, SVS\*, accel. PALM | $p\in\{500,1000,2000,5000\}$ × {P0, P1} | raw Topic-SCORE, LDA, KL-NMF | 3 sections × 3 seeds × 4 sizes → **36** (`panel.json`) |
 | `lambda_wide` | `A_current`, `A_full_L2` | SPA | $p=2{,}000$ × {P0, P2} | — | 3 sections × 1 seed → **3**; penalty grid extended to $j\le49$ (top ≈ 0.758) |
-| extended `core` (after meeting) | as core | all 6 | as core | as core | 12 sections × 5 seeds, $K\in\{5,7,9\}$ at $r=1$, and $r\in\{0.75,0.5,0.25\}$ at $K=7$ → **360** (`tasks_extended.csv`) |
+| extended `core` (after meeting) | as core | all 6 | as core | as core | 12 sections × 5 seeds, $K\in\{5,7,9\}$ at $r=1$, and $r\in\{0.75,0.5,0.25\}$ at $K=7$ → **360** (`extended.json`) |
 | `smoke` | as core | all 6 | as core | as core | 1 task, tiny penalty grid (3 values, 3 iterations, 3 folds) |
 
 \* Spatial-LDA's inclusion is pending (§12). Per core task this is
@@ -208,8 +208,8 @@ dimension at a time, and also reports the full factorial.
 ## 8. Evaluation metrics
 
 For a fit $(\hat W,\hat A)$ with $P=\hat W\hat A$ (rows renormalized) and test counts $Y$,
-$m_i=\sum_jY_{ij}$ (`score_fit` in `ablation_runner.py`; functions in
-`gplsi_spatial_benchmark/metrics.py`):
+$m_i=\sum_jY_{ij}$ (`evaluate_fit` in
+`gplsi/pipeline/metrics.py`):
 
 | Metric | Definition | Depends on |
 |---|---|---|
@@ -320,50 +320,41 @@ for held-out deviance in every paired geometry, with no effect on ARI.
 
 ## 10. Code map
 
-New:
+Since the merge with the CRC/spleen/Cooking handoff (branch `yeojin-merge`), DLPFC runs
+through the shared experiment pipeline (`src/gplsi/pipeline/`, README "Running experiments").
 
 | File | Purpose |
 |---|---|
-| `scripts/visium_dlpfc/prepare_data.py` | download and build the processed H5AD (§1) |
-| `src/gplsi_spatial_benchmark/panels.py` | training-only nested gene panels (sparse-aware) |
-| `src/gplsi_spatial_benchmark/ablation_runner.py` | `prepare_task_data`, `score_fit`, `run_task`; writes `results/visium_dlpfc/<design>/<task>.json` and `.npz` (W, A, spot IDs, panel genes, coordinates). Separate module, so the Midway `runner.py` is untouched. |
-| `configs/visium_dlpfc/ablation.json` | settings and designs (§7) |
-| `configs/visium_dlpfc/tasks_*.csv` | smoke 1, core 9, panel 36, lambda_wide 3, extended 360 |
-| `scripts/visium_dlpfc/make_tasks.py` | writes the manifests |
-| `scripts/visium_dlpfc/run_tasks.py` | resumable local parallel launcher; single-threaded BLAS; logs in `logs/visium_dlpfc/` |
-| `scripts/visium_dlpfc/slurm_array.sh` | Slurm array version |
-| `scripts/visium_dlpfc/refit_poisson.py` | Poisson $A$ from saved $W$ on rebuilt identical data (checks spot/gene IDs). **Untested; its `poisson_refit` settings (initial, interior_mass, max_iter, tolerance) still need to be added to the config.** |
-| `scripts/visium_dlpfc/summarize.py` | tables and figures: ARI heatmap, per-axis marginals, paired A contrasts, panel curves, baselines, seed stability, spatial maps. **Not yet run on real results.** |
-| `tests/test_dlpfc_ablation.py` | sparse split conservation and nesting; nested training-only panels; `A_full_L2` wiring; vectorized projection = row loop; Gram-form L2 = residual-form L2 |
+| `scripts/data/prepare_dlpfc.py` | download and build the processed H5AD (§1) |
+| `configs/dlpfc/ablation/base.json`, `configs/dlpfc/ablation/<design>.json` | shared settings (incl. `posthoc_refit`) and one config per design (§7) |
+| `src/gplsi/pipeline/datasets.py` | `_prepare_dlpfc`: sparse thinning, training-only panel, spot mask, kNN graph (§2) |
+| `src/gplsi/pipeline/panels.py`, `splits.py`, `graph.py` | nested gene panels, sparse count split, within-section kNN graph |
+| `src/gplsi/pipeline/runner.py` | the method grid; one row + W/A archive per fit under `results/dlpfc/<design>/<task>/` |
+| `src/gplsi/pipeline/metrics.py` | held-out (fitted and reference panel), layer, spatial, and topic-profile scores (§8) |
+| `scripts/refit_A.py` | Poisson (or SQUAREM) $A$ from saved $W$ on the rebuilt, hash-checked data |
+| `scripts/analysis/dlpfc/records.py` | reads a design's results in per-task form for the analysis scripts |
+| `scripts/analysis/dlpfc/summarize.py` | tables and figures: ARI heatmap, per-axis marginals, paired A contrasts, panel curves, baselines, seed stability, spatial maps |
+| `scripts/analysis/dlpfc/plot_*.py`, `compare_A_estimators.py`, `make_report_pdf.py` | diagnostics figures and the PDF report |
+| `tests/test_dlpfc_ablation.py`, `tests/test_pipeline.py` | sparse split, nested panels, `A_full_L2`, projection and Gram-form L2 parity; pipeline end to end |
 
-Modified:
-
-| File | Change |
-|---|---|
-| `src/gplsi/real_experiment.py` | `A_full_L2` branch in `recover_A_for_geometry` (warm start = paired `A_current`) |
-| `src/gplsi_spatial_benchmark/methods.py` | `fit_method_suite` takes `A_recoveries`, `vertex_parameters`, `competitors`, `recovery_parameters` (previously hard-coded); records hunter convergence and retained-gene count |
-| `src/gplsi_spatial_benchmark/splits.py` | `thin_and_split_sparse_counts` |
-| `src/gplsi/recovery.py` | speed only: vectorized `project_rows_simplex` (bitwise identical to the row loop, about 70× faster); `refit_A_full_l2` computes its gradient and objective from $\hat W^\top\hat W$, $\hat W^\top X$, $\lVert X\rVert_F^2$ (matches the original to $10^{-9}$). **The Poisson solver is unchanged.** |
-
-Environment (`gplsi-env`): reinstalled `pycvxcluster` (its editable install pointed to a
-deleted folder); added `anndata`, `h5py`, `pytest`, `pyarrow`, `psutil`,
-`threadpoolctl`, `py-spy`.
+Speed-only changes to shared code: vectorized `project_rows_simplex` (bitwise identical to the
+row loop) and Gram-form `refit_A_full_l2` (matches the original to $10^{-9}$) in
+`gplsi/recovery.py`. The Poisson solver is unchanged.
 
 ## 11. Running
 
 ```sh
 conda activate gplsi-env
-python scripts/visium_dlpfc/prepare_data.py --download
-python scripts/visium_dlpfc/make_tasks.py
-python scripts/visium_dlpfc/run_tasks.py --tasks configs/visium_dlpfc/tasks_core.csv --workers 6
-python scripts/visium_dlpfc/refit_poisson.py --designs core panel lambda_wide --workers 6
-python scripts/visium_dlpfc/summarize.py
-# Slurm: sbatch --array=0-8 --export=ALL,TASKS=configs/visium_dlpfc/tasks_core.csv scripts/visium_dlpfc/slurm_array.sh
+python scripts/data/prepare_dlpfc.py --download
+python scripts/run_experiment.py configs/dlpfc/ablation/core.json --list      # 9 tasks
+python scripts/run_experiment.py configs/dlpfc/ablation/core.json --task 0
+python scripts/refit_A.py configs/dlpfc/ablation/core.json                     # A_full_Pois, pooled start
+cd scripts/analysis/dlpfc && python summarize.py
+# Slurm: sbatch --array=0-8 --export=ALL,CONFIG=configs/dlpfc/ablation/core.json scripts/slurm/run_experiment.sh
 ```
 
-Outputs go to `results/visium_dlpfc/` (gitignored); the summary goes to
-`results/visium_dlpfc/summary/` (`report.md`, `all_records.csv`, `seed_stability.csv`,
-figures).
+Outputs go to `results/dlpfc/<design>/` (gitignored); the summary goes to
+`results/dlpfc/summary/` (`report.md`, `all_records.csv`, `seed_stability.csv`, figures).
 
 ## 12. Open decisions and plans
 

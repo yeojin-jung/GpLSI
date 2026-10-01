@@ -1,9 +1,12 @@
-"""Canonical, validated loaders for the three audited real-data experiments.
+"""Canonical, validated loaders for the CRC, spleen, and What's Cooking data.
 
-The loaders reproduce the immutable data contracts recorded by
-``scripts/real_data_anchor_word_gplsi/audit_sources.py``.  Experimental feature
+Each loader checks its output against the frozen hash contract in
+``contracts/canonical_data_contract_summary.json``.  Experimental feature
 selection and weighting are deliberately excluded: every method receives the
 same canonical count matrix, frequencies, document lengths, and graph.
+
+Data live under ``data/{crc,spleen,cook}`` (``GPLSI_DATA_ROOT`` overrides the
+root).  Visium DLPFC sections are loaded by :mod:`gplsi.pipeline.datasets`.
 """
 
 from __future__ import annotations
@@ -147,6 +150,95 @@ class RealDataBundle:
         if self.coordinates is not None:
             output["coordinates_sha256"] = _sha256_numeric(self.coordinates, "<f8")
         return output
+
+    def induced_row_subset(
+        self,
+        indices: np.ndarray,
+        *,
+        metadata_updates: dict[str, Any] | None = None,
+    ) -> "RealDataBundle":
+        """Return the graph-induced subset on sorted row ``indices``.
+
+        The explicit sorted-index contract keeps the canonical edge ordering
+        stable and makes row-removal hashes reproducible.  Feature columns are
+        never changed here.
+        """
+
+        raw_indices = np.asarray(indices)
+        if raw_indices.ndim != 1 or not np.issubdtype(
+            raw_indices.dtype, np.integer
+        ):
+            raise RealDataContractError(
+                "induced row-subset indices must be a one-dimensional integer array"
+            )
+        selected = np.asarray(raw_indices, dtype=np.int64)
+        if selected.size == 0:
+            raise RealDataContractError("an induced row subset cannot be empty")
+        if (
+            np.any(selected < 0)
+            or np.any(selected >= self.n)
+            or np.any(np.diff(selected) <= 0)
+        ):
+            raise RealDataContractError(
+                "induced row-subset indices must be unique, sorted, and in range"
+            )
+        if selected.size == self.n and np.array_equal(
+            selected, np.arange(self.n, dtype=np.int64)
+        ):
+            output = replace(self, metadata=dict(self.metadata))
+            if metadata_updates:
+                output.metadata.update(metadata_updates)
+            return output.validate()
+
+        remap = np.full(self.n, -1, dtype=np.int64)
+        remap[selected] = np.arange(selected.size, dtype=np.int64)
+        endpoints = self.edge_df[["src", "tgt"]].to_numpy(dtype=np.int64)
+        keep = (remap[endpoints[:, 0]] >= 0) & (remap[endpoints[:, 1]] >= 0)
+        edge = self.edge_df.loc[keep].copy().reset_index(drop=True)
+        edge["src"] = remap[edge["src"].to_numpy(dtype=np.int64)]
+        edge["tgt"] = remap[edge["tgt"].to_numpy(dtype=np.int64)]
+        sparse = csr_matrix(
+            (
+                edge["weight"].to_numpy(dtype=float),
+                (
+                    edge["src"].to_numpy(dtype=np.int64),
+                    edge["tgt"].to_numpy(dtype=np.int64),
+                ),
+            ),
+            shape=(selected.size, selected.size),
+        )
+        metadata = dict(self.metadata)
+        metadata.update(
+            {
+                "subset_of_canonical": True,
+                "parent_n": self.n,
+                "subset_strategy": "induced_row_subset",
+                "subset_indices_sha256": _sha256_numeric(selected, "<i8"),
+            }
+        )
+        if metadata_updates:
+            metadata.update(metadata_updates)
+        return replace(
+            self,
+            counts=np.ascontiguousarray(self.counts[selected]),
+            frequencies=np.ascontiguousarray(self.frequencies[selected]),
+            document_lengths=np.ascontiguousarray(self.document_lengths[selected]),
+            observation_ids=self.observation_ids[selected].copy(),
+            group_ids=self.group_ids[selected].copy(),
+            edge_df=edge,
+            weights=sparse,
+            coordinates=(
+                None
+                if self.coordinates is None
+                else np.ascontiguousarray(self.coordinates[selected])
+            ),
+            outcomes=(
+                None
+                if self.outcomes is None
+                else self.outcomes.iloc[selected].reset_index(drop=True)
+            ),
+            metadata=metadata,
+        ).validate()
 
     def connected_subset(self, max_observations: int, seed: int = 0) -> "RealDataBundle":
         """Return a deterministic connected induced subgraph for smoke/pilot checks."""
@@ -438,7 +530,7 @@ def _make_bundle(
 
 
 def load_crc(*, phi: float = 0.1) -> RealDataBundle:
-    root = DATA_ROOT / "stanford-crc"
+    root = DATA_ROOT / "crc"
     source = root / "output" / "output_3hop"
     metadata = pd.read_csv(root / "charville_labels.csv")
     selected_metadata = metadata.loc[metadata["primary_outcome"].notna()].copy()
@@ -650,7 +742,7 @@ def _sample_cuisine(group: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_cook() -> RealDataBundle:
-    root = DATA_ROOT / "whats-cooking" / "dataset"
+    root = DATA_ROOT / "cook" / "dataset"
     raw = pd.read_json(root / "train.json")
     with (root / "ingredient_mapping.pkl").open("rb") as handle:
         ingredient_mapping = pickle.load(handle)
@@ -778,6 +870,15 @@ def validate_frozen_contract(bundle: RealDataBundle) -> RealDataBundle:
 
 
 def load_real_data(dataset: str, *, group: str = "BALBc-1") -> RealDataBundle:
+    """Load a validated named dataset.
+
+    ``dataset`` is one of ``crc``, ``spleen`` (``group`` = BALBc-1/2/3 or
+    ``joint``), ``cook`` (historical 13,597 x 1,019 corpus), or ``cook_v2``
+    (raw recipes with >= 8 ingredients and a rebuilt Jaccard graph; build it
+    with ``scripts/data/prepare_cook_v2.py``).  Long canonical names are
+    accepted as aliases.
+    """
+
     aliases = {
         "crc": "stanford_crc_codex",
         "stanford_crc_codex": "stanford_crc_codex",
@@ -785,6 +886,9 @@ def load_real_data(dataset: str, *, group: str = "BALBc-1") -> RealDataBundle:
         "mouse_spleen_codex": "mouse_spleen_codex",
         "cook": "whats_cooking",
         "whats_cooking": "whats_cooking",
+        "cook_v2": "whats_cooking_raw_min8_jaccard_v2",
+        "cook_raw_min8_jaccard_v2": "whats_cooking_raw_min8_jaccard_v2",
+        "whats_cooking_raw_min8_jaccard_v2": "whats_cooking_raw_min8_jaccard_v2",
     }
     try:
         canonical = aliases[dataset]
@@ -796,6 +900,11 @@ def load_real_data(dataset: str, *, group: str = "BALBc-1") -> RealDataBundle:
         if group == JOINT_SPLEEN_GROUP:
             return load_joint_spleen()
         bundle = load_spleen(group)
-    else:
+    elif canonical == "whats_cooking":
         bundle = load_cook()
+    else:
+        # The v2 loader validates its own manifest and hashes.
+        from .cook_min8_jaccard_v2 import load_contract
+
+        return load_contract()
     return validate_frozen_contract(bundle)

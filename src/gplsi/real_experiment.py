@@ -1,8 +1,13 @@
-"""Composable experiment blocks for audited real-data GpLSI comparisons."""
+"""GpLSI building blocks shared by all experiments.
+
+One spectral block (preprocessing + graph-aligned SVD) is fitted per
+preprocessing and reused by every vertex hunter and geometry; every A recovery
+is then applied to the identical W.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from time import perf_counter
 from typing import Any
 
@@ -10,19 +15,24 @@ import numpy as np
 
 from .anchor_word import build_word_profile, recover_W_from_word_vertices
 from .graphSVD import graphSVD
-from .preprocessing import PreprocessingResult, preprocess_features, weighted_debiased_correction
+from .preprocessing import (
+    PreprocessingResult,
+    ThresholdResult,
+    preprocess_features,
+    weighted_debiased_correction,
+)
 from .real_data import RealDataBundle
 from .recovery import (
     ARecoveryResult,
     PreparedPoissonCounts,
     RecoveryError,
     WRecoveryResult,
-    poisson_objective_and_gradient,
     project_rows_simplex,
     recover_W,
     refit_A_current,
     refit_A_full_l2,
     refit_A_full_poisson,
+    refit_A_full_poisson_squarem,
 )
 from .topicscore import TopicScoreResult, fit_topicscore_graph_denoised
 from .vertex_hunting import VertexHuntResult, vertex_hunt
@@ -38,6 +48,36 @@ PREPROCESSING_SPECS: dict[str, dict[str, Any]] = {
     "P3_tran_then_ke": {
         "threshold_method": "tran_script_exact",
         "weight_method": "ke_empirical",
+    },
+    "P1_tran_alpha_0p1": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "none",
+        "alpha": 0.1,
+    },
+    "P3_tran_alpha_0p1_then_ke": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "ke_empirical",
+        "alpha": 0.1,
+    },
+    "P1_tran_alpha_0p1_drop_zero_rows": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "none",
+        "alpha": 0.1,
+    },
+    "P3_tran_alpha_0p1_then_ke_drop_zero_rows": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "ke_empirical",
+        "alpha": 0.1,
+    },
+    "P1_tran_alpha_0p01_drop_zero_rows": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "none",
+        "alpha": 0.01,
+    },
+    "P3_tran_alpha_0p01_then_ke_drop_zero_rows": {
+        "threshold_method": "tran_paper_exact",
+        "weight_method": "ke_empirical",
+        "alpha": 0.01,
     },
 }
 
@@ -91,6 +131,8 @@ def fit_spectral_block(
     nfolds: int = 5,
     n_jobs: int = 1,
     initialization: str = "current",
+    cv_fold_mode: str = "all",
+    lambda_selection_mode: str = "cv_each_iteration",
 ) -> SpectralBlock:
     """Preprocess once, retune rho, and return reusable graph-SVD factors."""
 
@@ -100,22 +142,101 @@ def fit_spectral_block(
             f"expected {sorted(PREPROCESSING_SPECS)}"
         )
     X = np.asarray(bundle.frequencies, dtype=float)
-    positive = np.flatnonzero(X.mean(axis=0) > 0)
-    if positive.size < K:
-        raise ValueError(f"only {positive.size} positive-frequency columns remain for K={K}")
-    spec = PREPROCESSING_SPECS[preprocessing_name]
-    processed = preprocess_features(
-        X[:, positive],
-        bundle.document_lengths,
-        alpha=0.005,
-        K=K,
-        fail_on_rank_loss=True,
-        weight_cap=None,
-        weight_common_scale="none",
-        tau=0.0,
-        **spec,
-    )
-    retained = positive[processed.threshold.retained_indices]
+    spec = dict(PREPROCESSING_SPECS[preprocessing_name])
+    alpha = float(spec.pop("alpha", 0.005))
+    frozen = bundle.metadata.get("frozen_tran_feature_support")
+    if frozen and preprocessing_name in frozen.get("matching_preprocessings", []):
+        positive = np.asarray(
+            frozen["positive_canonical_indices"], dtype=np.int64
+        )
+        retained = np.asarray(
+            frozen["retained_canonical_indices"], dtype=np.int64
+        )
+        if (
+            positive.ndim != 1
+            or retained.ndim != 1
+            or positive.size < K
+            or retained.size < K
+            or np.any(positive < 0)
+            or np.any(positive >= bundle.p)
+            or np.any(retained < 0)
+            or np.any(retained >= bundle.p)
+        ):
+            raise ValueError("frozen Tran support is invalid for this bundle and K")
+        positive_position = {int(value): index for index, value in enumerate(positive)}
+        try:
+            retained_relative = np.asarray(
+                [positive_position[int(value)] for value in retained], dtype=np.int64
+            )
+        except KeyError as error:
+            raise ValueError("frozen retained support is not contained in positive support") from error
+        requested_method = str(spec.pop("threshold_method", "none"))
+        processed_base = preprocess_features(
+            X[:, retained],
+            bundle.document_lengths,
+            threshold_method="none",
+            alpha=alpha,
+            K=K,
+            fail_on_rank_loss=True,
+            weight_cap=None,
+            weight_common_scale="none",
+            tau=0.0,
+            **spec,
+        )
+        retained_row_mass = X[:, retained].sum(axis=1)
+        if np.any(retained_row_mass <= 0):
+            raise ValueError(
+                "frozen Tran support contains a zero-mass recipe after row filtering"
+            )
+        frozen_threshold = ThresholdResult(
+            retained_indices=retained_relative,
+            discarded_indices=np.setdiff1d(
+                np.arange(positive.size, dtype=np.int64), retained_relative
+            ),
+            threshold_value=float(frozen["threshold_value"]),
+            alpha=float(frozen["alpha"]),
+            eta_hat=np.asarray(frozen["eta_hat_positive"], dtype=float),
+            retained_feature_count=int(retained.size),
+            retained_feature_fraction=float(retained.size / positive.size),
+            retained_row_mass=retained_row_mass,
+            retained_topic_mass=None,
+            retained_population_rank=None,
+            rank_ok=None,
+            requested_method=requested_method,
+            effective_method=str(frozen["threshold_method"]),
+            N_used=float(frozen["N_used"]),
+            unequal_document_lengths=bool(
+                frozen.get("unequal_document_lengths", False)
+            ),
+            fallback_active=bool(frozen.get("top_10_percent_fallback", False)),
+            warnings=[
+                *[str(value) for value in frozen.get("threshold_warnings", [])],
+                "frozen_tran_support_after_zero_training_mass_row_filter",
+            ],
+        )
+        processed = replace(
+            processed_base,
+            X_original=X[:, positive],
+            threshold=frozen_threshold,
+        )
+    else:
+        positive = np.flatnonzero(X.mean(axis=0) > 0)
+        if positive.size < K:
+            raise ValueError(
+                f"only {positive.size} positive-frequency columns remain for K={K}"
+            )
+        processed = preprocess_features(
+            X[:, positive],
+            bundle.document_lengths,
+            alpha=alpha,
+            K=K,
+            fail_on_rank_loss=True,
+            weight_cap=None,
+            weight_common_scale="none",
+            tau=0.0,
+            **spec,
+        )
+        retained = positive[processed.threshold.retained_indices]
     eta = X[:, retained].mean(axis=0)
     correction = None
     if initialization in {"weighted_debiased", "weighted_debiased_mean_N_approx"}:
@@ -155,8 +276,9 @@ def fit_spectral_block(
         return_metadata=True,
         random_state=seed,
         nfolds=nfolds,
-        cv_fold_mode="all",
+        cv_fold_mode=cv_fold_mode,
         n_jobs=n_jobs,
+        lambda_selection_mode=lambda_selection_mode,
     )
     warning_messages = list(processed.threshold.warnings)
     if positive.size != bundle.p:
@@ -338,61 +460,96 @@ def fit_geometry(
     )
 
 
-def recover_A_for_geometry(
+A_RECOVERIES = ("A_current", "A_full_L2", "A_full_Pois", "A_full_Pois_SQUAREM")
+POISSON_STARTS = ("A_current", "pooled")
+
+
+def recover_A(
     bundle: RealDataBundle,
-    geometry_fit: GeometryFit,
+    W: np.ndarray,
     method: str,
     *,
     poisson_max_iter: int = 2_000,
     poisson_tolerance: float = 1e-8,
+    poisson_start: str = "A_current",
     poisson_counts: PreparedPoissonCounts | None = None,
     poisson_initial_A: np.ndarray | None = None,
+    statistics_backend: str = "auto",
 ) -> tuple[ARecoveryResult, float]:
-    """Apply A-current, simplex least-squares, or Poisson A to the same W."""
+    """Apply one A recovery to a fixed W (shared by all recoveries of a fit).
 
+    ``A_full_L2`` and the Poisson refits start from ``poisson_initial_A`` when
+    given; otherwise ``poisson_start`` chooses between the paired A-current
+    estimate ("A_current") and pooled feature frequencies ("pooled").
+    """
+
+    if method not in A_RECOVERIES:
+        raise ValueError(f"A recovery must be one of {A_RECOVERIES}, not {method!r}")
+    if poisson_start not in POISSON_STARTS:
+        raise ValueError(f"poisson_start must be one of {POISSON_STARTS}")
     started = perf_counter()
     if method == "A_current":
-        result = refit_A_current(geometry_fit.W_hat, bundle.frequencies)
-    elif method == "A_full_L2":
-        # Same warm start as the Poisson refit, so the two full-vocabulary
-        # estimators differ only in their loss.
+        return refit_A_current(W, bundle.frequencies), perf_counter() - started
+
+    warm_start = poisson_initial_A
+    warm_start_warning = None
+    if warm_start is None and poisson_start == "A_current":
+        try:
+            warm_start = refit_A_current(W, bundle.frequencies).A_hat
+        except RecoveryError as error:
+            warm_start_warning = (
+                "paired_A_current_warm_start_failed; used pooled feature frequencies: "
+                f"{error}"
+            )
+    if method == "A_full_L2":
         result = refit_A_full_l2(
-            geometry_fit.W_hat,
+            W,
             bundle.frequencies,
-            initial_A=poisson_initial_A,
-            max_iter=poisson_max_iter,
-            tolerance=poisson_tolerance,
-        )
-    elif method == "A_full_Pois":
-        # Use the exact paired historical estimate as a deterministic warm
-        # start.  The Poisson routine interiorizes it once so EM can reopen
-        # coordinates that the simplex projection set to zero.
-        warm_start = poisson_initial_A
-        warm_start_warning = None
-        if warm_start is None:
-            try:
-                warm_start = refit_A_current(geometry_fit.W_hat, bundle.frequencies).A_hat
-            except RecoveryError as error:
-                warm_start_warning = (
-                    "paired_A_current_warm_start_failed; used pooled feature frequencies: "
-                    f"{error}"
-                )
-        result = refit_A_full_poisson(
-            geometry_fit.W_hat,
-            bundle.counts if poisson_counts is None else poisson_counts,
-            bundle.document_lengths,
             initial_A=warm_start,
             max_iter=poisson_max_iter,
             tolerance=poisson_tolerance,
         )
-        result.diagnostics["warm_start"] = (
-            "paired_A_current" if warm_start is not None else "pooled_feature_frequencies"
-        )
-        if warm_start_warning is not None:
-            result.warnings.append(warm_start_warning)
     else:
-        raise ValueError("A recovery must be 'A_current', 'A_full_L2', or 'A_full_Pois'")
+        # The Poisson routines interiorize the start once so EM can reopen
+        # coordinates that a simplex projection set to zero.
+        counts = bundle.counts if poisson_counts is None else poisson_counts
+        if method == "A_full_Pois":
+            result = refit_A_full_poisson(
+                W,
+                counts,
+                bundle.document_lengths,
+                initial_A=warm_start,
+                max_iter=poisson_max_iter,
+                tolerance=poisson_tolerance,
+                statistics_backend=statistics_backend,
+            )
+        else:
+            result = refit_A_full_poisson_squarem(
+                W,
+                counts,
+                bundle.document_lengths,
+                initial_A=warm_start,
+                max_evaluations=poisson_max_iter + 2,
+                tolerance=poisson_tolerance,
+                statistics_backend=statistics_backend,
+            )
+    result.diagnostics["warm_start"] = (
+        "paired_A_current" if warm_start is not None else "pooled_feature_frequencies"
+    )
+    if warm_start_warning is not None:
+        result.warnings.append(warm_start_warning)
     return result, perf_counter() - started
+
+
+def recover_A_for_geometry(
+    bundle: RealDataBundle,
+    geometry_fit: GeometryFit,
+    method: str,
+    **settings: Any,
+) -> tuple[ARecoveryResult, float]:
+    """:func:`recover_A` applied to the W of one vertex-hunting geometry."""
+
+    return recover_A(bundle, geometry_fit.W_hat, method, **settings)
 
 
 def fit_graph_topicscore(
@@ -406,140 +563,3 @@ def fit_graph_topicscore(
         retained_indices=block.retained_canonical_indices,
         weights=block.preprocessing.weighting.weights,
     )
-
-
-def fit_diagnostics(
-    bundle: RealDataBundle,
-    W_hat: np.ndarray,
-    A_hat: np.ndarray,
-) -> dict[str, float]:
-    W = np.asarray(W_hat, dtype=float)
-    A = np.asarray(A_hat, dtype=float)
-    reconstruction = W @ A
-    residual = bundle.frequencies - reconstruction
-    poisson, gradient = poisson_objective_and_gradient(
-        A, W, bundle.counts, bundle.document_lengths, 1e-12
-    )
-    endpoints = bundle.edge_df[["src", "tgt"]].to_numpy(dtype=int)
-    edge_weights = bundle.edge_df["weight"].to_numpy(dtype=float)
-    if endpoints.size:
-        differences = W[endpoints[:, 0]] - W[endpoints[:, 1]]
-        smoothness = float(np.average(np.sum(differences**2, axis=1), weights=edge_weights))
-        labels = np.argmax(W, axis=1)
-        neighbor_agreement = float(
-            np.average(labels[endpoints[:, 0]] == labels[endpoints[:, 1]], weights=edge_weights)
-        )
-        centered_numeric = labels.astype(float) - float(np.mean(labels))
-        numeric_denominator = float(np.sum(centered_numeric**2) * np.sum(edge_weights))
-        historical_moran = (
-            np.nan
-            if numeric_denominator <= 0
-            else float(
-                bundle.n
-                * np.sum(
-                    edge_weights
-                    * centered_numeric[endpoints[:, 0]]
-                    * centered_numeric[endpoints[:, 1]]
-                )
-                / numeric_denominator
-            )
-        )
-        incident: dict[int, list[float]] = {}
-        disagreements = labels[endpoints[:, 0]] != labels[endpoints[:, 1]]
-        for side in (0, 1):
-            for node in np.unique(endpoints[:, side]):
-                incident.setdefault(int(node), []).append(
-                    float(np.mean(disagreements[endpoints[:, side] == node]))
-                )
-        summed_incident = np.asarray([sum(values) for values in incident.values()])
-        historical_one_minus_pas = float(1.0 - np.mean(summed_incident >= 0.6))
-        one_hot_moran: list[float] = []
-        for topic in range(W.shape[1]):
-            indicator = (labels == topic).astype(float)
-            centered = indicator - indicator.mean()
-            denominator = float(np.sum(centered**2) * np.sum(edge_weights))
-            if denominator > 0:
-                one_hot_moran.append(
-                    float(
-                        bundle.n
-                        * np.sum(
-                            edge_weights
-                            * centered[endpoints[:, 0]]
-                            * centered[endpoints[:, 1]]
-                        )
-                        / denominator
-                    )
-                )
-    else:
-        smoothness = np.nan
-        neighbor_agreement = np.nan
-        historical_moran = np.nan
-        historical_one_minus_pas = np.nan
-        one_hot_moran = []
-    return {
-        "reconstruction_fro": float(np.linalg.norm(residual, ord="fro")),
-        "reconstruction_l1": float(np.sum(np.abs(residual))),
-        "poisson_objective": float(poisson),
-        "poisson_gradient_norm": float(np.linalg.norm(gradient)),
-        "graph_W_smoothness": smoothness,
-        "graph_neighbor_topic_agreement": neighbor_agreement,
-        "historical_numeric_label_moran": historical_moran,
-        "historical_1_minus_PAS": historical_one_minus_pas,
-        "permutation_invariant_one_hot_moran_mean": (
-            np.nan if not one_hot_moran else float(np.mean(one_hot_moran))
-        ),
-        "W_simplex_error": float(np.max(np.abs(W.sum(axis=1) - 1.0))),
-        "W_min": float(W.min()),
-        "A_simplex_error": float(np.max(np.abs(A.sum(axis=1) - 1.0))),
-        "A_min": float(A.min()),
-        "W_rank": int(np.linalg.matrix_rank(W)),
-        "A_rank": int(np.linalg.matrix_rank(A)),
-    }
-
-
-def heldout_count_diagnostics(
-    W_hat: np.ndarray,
-    A_hat: np.ndarray,
-    heldout_counts: np.ndarray,
-    *,
-    epsilon: float = 1e-12,
-) -> dict[str, float]:
-    """Evaluate a train-fitted W/A pair on untouched thinned counts."""
-
-    W = np.asarray(W_hat, dtype=float)
-    A = np.asarray(A_hat, dtype=float)
-    test = np.asarray(heldout_counts, dtype=float)
-    if test.shape != (W.shape[0], A.shape[1]) or np.any(test < 0):
-        raise ValueError("held-out counts do not align with W and A")
-    lengths = test.sum(axis=1)
-    evaluated = lengths > 0
-    if not np.any(evaluated):
-        raise ValueError("held-out evaluation has no positive-count rows")
-    test = test[evaluated]
-    W = W[evaluated]
-    lengths = lengths[evaluated]
-    probabilities = np.maximum(W @ A, 0.0)
-    probabilities /= np.maximum(probabilities.sum(axis=1, keepdims=True), epsilon)
-    stabilized = probabilities + epsilon
-    means = lengths[:, None] * probabilities + epsilon
-    positive = test > 0
-    log_likelihood = float(np.sum(test * np.log(stabilized)))
-    poisson_deviance = float(
-        2.0
-        * (
-            np.sum(test[positive] * np.log(test[positive] / means[positive]))
-            - np.sum(test - means)
-        )
-    )
-    empirical = test / lengths[:, None]
-    residual = empirical - probabilities
-    return {
-        "heldout_multinomial_log_likelihood_without_constant": log_likelihood,
-        "heldout_poisson_deviance": poisson_deviance,
-        "heldout_multinomial_deviance": poisson_deviance,
-        "heldout_frequency_fro": float(np.linalg.norm(residual, ord="fro")),
-        "heldout_frequency_l1": float(np.sum(np.abs(residual))),
-        "heldout_count_total": float(test.sum()),
-        "heldout_evaluated_row_count": int(np.count_nonzero(evaluated)),
-        "heldout_zero_count_row_count": int(evaluated.size - np.count_nonzero(evaluated)),
-    }

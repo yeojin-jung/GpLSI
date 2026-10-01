@@ -1,0 +1,20 @@
+{
+  "extends": "base.json",
+  "name": "lambda_wide_tsgd",
+  "description": "Penalty-grid sensitivity of graph-denoised TopicSCORE (reuses the P0_raw spectral block) on the 50-point grid.",
+  "gplsi": [],
+  "baselines": [
+    "topicscore_graph_denoised"
+  ],
+  "grid": {
+    "seed": [
+      26090401
+    ]
+  },
+  "spectral": {
+    "grid_len": 50
+  },
+  "A_recoveries": [
+    "A_current"
+  ]
+}

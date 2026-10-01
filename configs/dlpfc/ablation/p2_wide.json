@@ -1,0 +1,25 @@
+{
+  "extends": "base.json",
+  "name": "p2_wide",
+  "description": "Rerun of the core KE-weighted (P2) GpLSI geometries on the 50-point penalty grid (to ~0.75), because lambda_wide showed P2's CV optimum (~0.12-0.21) lies far above the core grid top (~0.0165). P3 is omitted because P3 = P2 at p = 2,000 (Tran thresholding removes <= 5 genes).",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P2_ke_weighted"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ]
+    }
+  ],
+  "baselines": [],
+  "spectral": {
+    "grid_len": 50
+  }
+}

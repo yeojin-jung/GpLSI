@@ -1,0 +1,26 @@
+{
+  "extends": "cook_alpha_0p1.json",
+  "name": "handoff_cook_alpha_0p1_svs_star_stability",
+  "description": "alpha = 0.1 with SVS* using its own scalable L selection at every K.",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P1_tran_alpha_0p1_drop_zero_rows",
+        "P3_tran_alpha_0p1_then_ke_drop_zero_rows"
+      ],
+      "vertex_hunters": [
+        "svs_star"
+      ]
+    }
+  ],
+  "vertex_parameters": {
+    "svs_star": {
+      "L_mode": "svs_star_stability",
+      "hull_solver_tolerance": 1e-10,
+      "hull_solver_max_iterations": 500
+    }
+  },
+  "unavailable": [],
+  "parts": null
+}

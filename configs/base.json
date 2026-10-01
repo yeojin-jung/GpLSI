@@ -1,0 +1,75 @@
+{
+  "description": "Paper protocol shared by CRC, spleen, Cooking and DLPFC (docs/protocol.md): 20% count thinning held out; graph-aligned SVD with lambda chosen once by 5-fold graph CV and then held fixed; GpLSI = document geometry + SVS* with its own stability L selection; three A estimators from the same W; five seeds.",
+  "output_root": "results",
+  "heldout_fraction": 0.2,
+  "spectral": {
+    "lamb_start": 0.0001,
+    "step_size": 1.2,
+    "grid_len": 29,
+    "maxiter": 50,
+    "eps": 1e-05,
+    "nfolds": 5,
+    "n_jobs": 1,
+    "cv_fold_mode": "all",
+    "lambda_selection_mode": "cv_once",
+    "initialization": "weighted_debiased_mean_N_approx"
+  },
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw"
+      ],
+      "vertex_hunters": [
+        "svs_star"
+      ]
+    }
+  ],
+  "A_recoveries": [
+    "A_current",
+    "A_full_L2",
+    "A_full_Pois"
+  ],
+  "recovery": {
+    "poisson_max_iter": 2000,
+    "poisson_tolerance": 1e-08,
+    "poisson_start": "pooled"
+  },
+  "condition_threshold": 1000000000000.0,
+  "vertex_parameters": {
+    "svs_star": {
+      "L_mode": "svs_star_stability",
+      "hull_solver_tolerance": 1e-10,
+      "hull_solver_max_iterations": 500
+    }
+  },
+  "baselines": [
+    "plsi",
+    "topicscore_raw",
+    "topicscore_graph_denoised",
+    "lda",
+    "spatial_lda"
+  ],
+  "topicscore_graph_preprocessing": "P0_raw",
+  "parts": {
+    "gplsi": {
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "baselines": {
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "spatial_lda": {
+      "gplsi": [],
+      "baselines": [
+        "spatial_lda"
+      ]
+    }
+  }
+}

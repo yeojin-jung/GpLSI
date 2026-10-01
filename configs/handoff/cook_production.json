@@ -1,0 +1,215 @@
+{
+  "extends": "base.json",
+  "name": "handoff_cook_production",
+  "description": "What's Cooking v2 (raw recipes with >= 8 ingredients, rebuilt Jaccard graph; build with scripts/data/prepare_cook_v2.py). LDA also runs seeds 26090502-3.",
+  "dataset": {
+    "name": "cook_v2"
+  },
+  "grid": {
+    "K": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      10
+    ],
+    "seed": [
+      26090501
+    ]
+  },
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "palm",
+        "palm_accelerated"
+      ]
+    }
+  ],
+  "baselines": [
+    "plsi",
+    "topicscore_raw",
+    "topicscore_graph_denoised",
+    "lda"
+  ],
+  "unavailable": [
+    {
+      "K": [
+        8
+      ],
+      "vertex_hunters": [
+        "svs",
+        "svs_star"
+      ],
+      "reason": "Faithful adaptive MixedSCORE SVS is computationally unavailable at K=8: C(21,8)=203,490 exceeds max_simplexes=200,000 before the adaptive L sweep completes."
+    },
+    {
+      "K": [
+        10
+      ],
+      "vertex_hunters": [
+        "svs",
+        "svs_star"
+      ],
+      "reason": "Faithful adaptive MixedSCORE SVS is computationally unavailable at K=10: the stability search requires 10!=3,628,800 permutations, exceeding the audited 1,000,000-permutation guard."
+    }
+  ],
+  "parts": {
+    "P0_raw__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P0_raw"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "P0_raw__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P0_raw"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P1_tran_alpha_0p005__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p005"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P1_tran_alpha_0p005__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p005"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P2_ke_weighted__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P2_ke_weighted"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P2_ke_weighted__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P2_ke_weighted"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P3_tran_then_ke__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P3_tran_then_ke"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P3_tran_then_ke__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P3_tran_then_ke"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "baselines": {
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "baseline_seeds": {
+      "grid": {
+        "seed": [
+          26090502,
+          26090503
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "lda"
+      ]
+    }
+  }
+}

@@ -48,6 +48,7 @@ class GpLSI(object):
         graph_nfolds=5,
         graph_cv_fold_mode="legacy_first_three",
         graph_n_jobs=3,
+        graph_lambda_selection_mode="cv_each_iteration",
     ):
         """
         Graph-regularized probabilistic latent semantic indexing (GpLSI).
@@ -91,6 +92,10 @@ class GpLSI(object):
         graph_n_jobs : int
             Number of graph cross-validation workers (default 3); use 1 for
             serial execution.
+        graph_lambda_selection_mode : {"cv_each_iteration", "cv_once"}
+            Whether graph-SVD reruns CV at every alternating update or selects
+            once on the initialized right singular subspace and holds that
+            lambda fixed for the complete factorization.
 
         Attributes (after calling fit)
         --------------------------------
@@ -104,10 +109,10 @@ class GpLSI(object):
             Estimated topic loading matrix (rows are topics).
         lambd : float
             Selected regularization parameter (if method != "pLSI").
-        lambd_errs : list[float]
-            Grid of CV errors corresponding to each lambda.
-        used_iters : list[int]
-            Number of iterations used at each lambda.
+        lambd_errs : dict
+            Fold-level and summed CV errors corresponding to each lambda.
+        used_iters : int
+            Number of alternating graph-SVD iterations performed.
         anchor_indices : list[int]
             Indices of anchor documents selected by SPA (if return_anchor_docs=True).
         """
@@ -139,6 +144,7 @@ class GpLSI(object):
         self.graph_nfolds = graph_nfolds
         self.graph_cv_fold_mode = graph_cv_fold_mode
         self.graph_n_jobs = graph_n_jobs
+        self.graph_lambda_selection_mode = graph_lambda_selection_mode
 
     def fit(
         self,
@@ -322,6 +328,7 @@ class GpLSI(object):
                     nfolds=self.graph_nfolds,
                     cv_fold_mode=self.graph_cv_fold_mode,
                     n_jobs=self.graph_n_jobs,
+                    lambda_selection_mode=self.graph_lambda_selection_mode,
                 )
                 self.graph_metadata = None
             else:
@@ -378,6 +385,7 @@ class GpLSI(object):
                     nfolds=self.graph_nfolds,
                     cv_fold_mode=self.graph_cv_fold_mode,
                     n_jobs=self.graph_n_jobs,
+                    lambda_selection_mode=self.graph_lambda_selection_mode,
                 )
         
         print("Running SPOC...")

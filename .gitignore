@@ -15,7 +15,11 @@ output/
 logs/
 figures/
 external_references/
-data/interim/
-data/processed/
-data/manifests/
+# Large or regenerable data (see data/README.md)
+data/dlpfc/*
+!data/dlpfc/README.md
+data/cook/dataset/raw_*/
 slurm/
+
+# Spatial LDA (utils/spatial_lda/admm.py) dumps these on non-convergence
+*.dbg.pkl

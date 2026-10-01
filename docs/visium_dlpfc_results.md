@@ -1,5 +1,10 @@
 # Visium DLPFC ablation: results and experiment status
 
+> Recorded on branch `yeojin-exp` before the merge with the handoff code. Paths refer to that
+> layout: `scripts/visium_dlpfc/` is now `scripts/analysis/dlpfc/` (plus `scripts/run_experiment.py`
+> and `scripts/refit_A.py`), `configs/visium_dlpfc/` is `configs/dlpfc/ablation/`, and `results/visium_dlpfc/`
+> is `results/dlpfc/`. See `docs/visium_dlpfc_ablation.md` §10–11.
+
 This is a living document: the single place that records what has run, what the results
 are, and what is left. The design, methods, formulas and metrics are defined in
 [`visium_dlpfc_ablation.md`](visium_dlpfc_ablation.md), and the smoke-test report is in

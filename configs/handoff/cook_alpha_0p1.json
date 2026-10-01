@@ -1,0 +1,72 @@
+{
+  "extends": "cook_production.json",
+  "name": "handoff_cook_alpha_0p1",
+  "description": "Tran threshold sensitivity at alpha = 0.1 (paper rule, no fallback). The column support is frozen on the thinned training counts, then recipes left empty are dropped.",
+  "grid": {
+    "K": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      10
+    ],
+    "seed": [
+      26090501
+    ]
+  },
+  "post_tran_row_filter": true,
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P1_tran_alpha_0p1_drop_zero_rows",
+        "P3_tran_alpha_0p1_then_ke_drop_zero_rows"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "palm",
+        "palm_accelerated"
+      ]
+    }
+  ],
+  "A_recoveries": [
+    "A_full_Pois"
+  ],
+  "baselines": [],
+  "parts": {
+    "P1_P3__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p1_drop_zero_rows",
+            "P3_tran_alpha_0p1_then_ke_drop_zero_rows"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ]
+    },
+    "P1_P3__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p1_drop_zero_rows",
+            "P3_tran_alpha_0p1_then_ke_drop_zero_rows"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ]
+    }
+  }
+}

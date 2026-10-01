@@ -1,0 +1,20 @@
+{
+  "extends": "../base.json",
+  "name": "cook_production",
+  "description": "What's Cooking v2 (19,017 recipes with >= 8 ingredients x 4,911 ingredients, 20 cuisines, top-5 Jaccard graph; build with scripts/data/prepare_cook_v2.py). Paper protocol, K = 7, five seeds. Spatial LDA penalizes the Jaccard graph directly (no coordinates).",
+  "dataset": {
+    "name": "cook_v2"
+  },
+  "grid": {
+    "K": [
+      7
+    ],
+    "seed": [
+      26090501,
+      26090502,
+      26090503,
+      26090504,
+      26090505
+    ]
+  }
+}

@@ -52,18 +52,15 @@ where = ["src"]
 # gplsi-run = "gplsi.cli:main"
 
 [project.optional-dependencies]
+# Real-data experiments: Visium DLPFC (anndata) and the vendored spatial LDA.
 benchmark = [
   "anndata>=0.9",
-  "pyarrow>=10",
-  "psutil>=5.9",
-  "threadpoolctl>=3",
-  "PyYAML>=6",
   "tqdm>=4",
   "palettable>=3",
 ]
+# R TopicScore baseline of the legacy simulation runner.
 legacy = [
   "rpy2>=3.5",
-  "mpi4py>=3",
 ]
 dev = [
   "pytest",

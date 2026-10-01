@@ -1,0 +1,42 @@
+{
+  "extends": "production.json",
+  "name": "dlpfc_smoke",
+  "description": "Wiring check of the paper protocol on one section: 500-gene panel, 30% of the counts, one seed, one penalty value, one graph-SVD iteration, every method in one job. Not a scientific result.",
+  "grid": {
+    "section": [
+      "151673"
+    ],
+    "K": [
+      7
+    ],
+    "panel_size": [
+      500
+    ],
+    "retained_fraction": [
+      0.3
+    ],
+    "seed": [
+      1
+    ]
+  },
+  "spectral": {
+    "grid_len": 1,
+    "maxiter": 1,
+    "eps": 0.0001,
+    "nfolds": 3
+  },
+  "recovery": {
+    "poisson_max_iter": 200
+  },
+  "spatial_lda_parameters": {
+    "max_primal_dual_iter": 400,
+    "max_dirichlet_iter": 20,
+    "max_dirichlet_ls_iter": 10,
+    "max_lda_iter": 2,
+    "max_admm_iter": 5,
+    "n_iters": 1,
+    "n_parallel_processes": 1,
+    "primal_tol": 0.001
+  },
+  "parts": {}
+}

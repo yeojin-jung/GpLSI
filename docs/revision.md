@@ -1,6 +1,6 @@
 # Revision implementation notes
 
-This revision consolidates the reusable code from the vertex-hunting/weighting experiments, anchor-word experiments, real-data reruns, joint-cohort implementation, and subsequent reporting corrections. It preserves the newer seeded-SVD compatibility helper, cached adaptive SVS selection, multi-sample Spatial-LDA adapter, and joint-spleen loader while incorporating sparse Poisson recovery and the pp-SPA economy-SVD fix.
+This revision consolidates the reusable code from the vertex-hunting/weighting experiments, anchor-word experiments, real-data reruns, the Visium DLPFC ablation, and subsequent corrections. How the September 2026 real-data handoff was merged is recorded in [handoff_merge.md](handoff_merge.md). It preserves the newer seeded-SVD compatibility helper, cached adaptive SVS selection, multi-sample Spatial-LDA adapter, and joint-spleen loader while incorporating sparse Poisson recovery and the pp-SPA economy-SVD fix.
 
 ## Geometry and feature transforms
 
@@ -16,7 +16,7 @@ The four experimental preprocessings are independently configurable. Weight floo
 
 `recovery.py` provides historical, spectral-unweighted, L2, and Poisson recovery. The fixed-W Poisson objective uses nonnegative counts, observation depths, and simplex topic profiles; supply original integer counts for count-data analyses. Sparse inputs are canonicalized, duplicate count entries are combined, and updates operate on chunks of observed entries. The optimizer reports status, objective history, iterations, and a simplex optimality-gap certificate. Check both `status` and `converged`: `max_iter_reached` marks an exhausted budget, and `unidentified_inactive_topics` marks topic profiles that cannot be identified from W. Inactive profiles are preserved after the initial interiorization. The separately labeled MAP option is not the unpenalized MLE.
 
-Joint-cohort evaluation uses fixed-A fold-in on adaptation molecules and scores separate molecules. Library size acts as an observed offset: these scores assess conditional composition, not library-size forecasting. Zero-count rows, missing inference, nonconvergence, and impossible support each have explicit accounting. Native-panel predictions and common-reference-vocabulary predictions are separate endpoints.
+The experiment pipeline scores every fit on held-out molecules from binomial count thinning (exact multinomial likelihood, with impossible support reported as infinite loss and a separately named floored diagnostic), on training-count fit and graph smoothness of W, and, where evaluation-only labels exist (DLPFC layers), on label agreement. Library size acts as an observed offset: these scores assess conditional composition.
 
 ## Canonical real-data inputs
 
@@ -32,7 +32,7 @@ Use `load_real_data` for validated named datasets: `"crc"`/`"stanford_crc_codex"
 
 The historical default GpLSI path remains unweighted SPA with current A recovery. Graph controls are forwarded in both the default and extended paths; `legacy_first_three` scores lambda choices using folds 0, 1, and 2, while `all` scores every nonempty configured fold. Both modes fit every nonempty fold. Explicit seeds are forwarded to the seeded SVD helper. Legacy top-level helpers remain available without eagerly importing optional R/MPI experiment modules.
 
-The dense `gplsi.graphSVD` implementation preserves the historical numerical algorithm. The separate `gplsi_joint_v2.spectral` implementation adds sparse fitting, aligned U/s/V rotations, full low-rank reconstruction convergence checks, and `fold_fitted_v2` tuning that learns feature selection and initialization within training folds. Those changes are versioned separately from the historical regression path.
+The dense `gplsi.graphSVD` implementation preserves the historical numerical algorithm.
 
 The regression suite checks no-op baseline behavior, threshold boundary/fallback parity, fixed-center SVS comparisons, pp-SPA reference output, PALM objective behavior, geometry recovery, independent Poisson optimization oracles, count conservation, biological holdouts, feature/annotation leakage, graph boundaries, artifact corruption and restart handling, and reporting support/convergence rules. Compact synthetic fixtures travel with the code. Tests that require unbundled real datasets or historical outputs are skipped explicitly when those inputs are absent.
 

@@ -1,5 +1,10 @@
 # Visium DLPFC ablation — smoke test report
 
+> Recorded on branch `yeojin-exp` before the merge with the handoff code. Paths refer to that
+> layout: `scripts/visium_dlpfc/` is now `scripts/analysis/dlpfc/` (plus `scripts/run_experiment.py`
+> and `scripts/refit_A.py`), `configs/visium_dlpfc/` is `configs/dlpfc/ablation/`, and `results/visium_dlpfc/`
+> is `results/dlpfc/`. See `docs/visium_dlpfc_ablation.md` §10–11.
+
 Date: 2026-09-27 · Branch: `yeojin-exp` · Commit at run time: `9f4eb12` (plus uncommitted
 DSI setup changes to `environment.yaml`, `scripts/visium_dlpfc/slurm_array.sh`,
 `configs/visium_dlpfc/ablation.json`).

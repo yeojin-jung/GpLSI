@@ -1,0 +1,25 @@
+{
+  "extends": "../base.json",
+  "name": "spleen_production",
+  "description": "Mouse spleen CODEX, one joint model over BALBc-1/2/3 (100,840 B-cell neighbourhoods x 24 cell types; block-diagonal graph). Paper protocol, K = 3, 4, 5, 7, 10, five seeds.",
+  "dataset": {
+    "name": "spleen",
+    "group": "joint"
+  },
+  "grid": {
+    "K": [
+      3,
+      4,
+      5,
+      7,
+      10
+    ],
+    "seed": [
+      26090401,
+      26090402,
+      26090403,
+      26090404,
+      26090405
+    ]
+  }
+}

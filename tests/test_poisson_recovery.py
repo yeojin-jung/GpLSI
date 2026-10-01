@@ -3,7 +3,7 @@ from scipy.optimize import Bounds, LinearConstraint, minimize
 from scipy.sparse import coo_matrix
 
 from gplsi.recovery import refit_A_full_poisson
-from gplsi_spatial_benchmark.metrics import heldout_count_metrics
+from gplsi.pipeline.metrics import heldout_count_metrics
 
 
 def _oracle_fixture():

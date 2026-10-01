@@ -24,6 +24,14 @@ WEIGHT_METHODS = (
 )
 
 
+# A full dense spectrum is useful for the small simulation panels, but it is
+# only a diagnostic.  Computing it for the pre-threshold Cooking matrix would
+# request an O(min(n, p)^2 max(n, p)) decomposition before the actual model is
+# even fitted.  Keep the historical diagnostic exactly on ordinary matrices
+# and mark it unavailable on genuinely large panels.
+MAX_EXACT_DIAGNOSTIC_SPECTRUM_ENTRIES = 10_000_000
+
+
 class PreprocessingError(ValueError):
     """Raised when preprocessing is undefined or destroys required rank."""
 
@@ -64,6 +72,7 @@ class WeightResult:
     effective_variance: float
     transformed_singular_values: np.ndarray
     transformed_condition_number: float
+    transformed_spectrum_scope: str = "full"
 
 
 @dataclass
@@ -157,7 +166,15 @@ def select_feature_columns(
 
     retained = np.asarray(retained, dtype=int)
     discarded = np.setdiff1d(np.arange(p, dtype=int), retained, assume_unique=True)
-    retained_row_mass = matrix[:, retained].sum(axis=1)
+    identity_selection = (
+        retained.size == p
+        and np.array_equal(retained, np.arange(p, dtype=int))
+    )
+    retained_row_mass = (
+        matrix.sum(axis=1)
+        if identity_selection
+        else matrix[:, retained].sum(axis=1)
+    )
     retained_topic_mass: np.ndarray | None = None
     retained_rank: int | None = None
     rank_ok: bool | None = None
@@ -300,10 +317,19 @@ def frequency_weights(
             quantile_values,
         )
     }
-    transformed = matrix * weights
-    singular_values = np.linalg.svd(transformed, compute_uv=False)
-    positive = singular_values[singular_values > np.finfo(float).eps]
-    condition = np.inf if positive.size == 0 else float(positive[0] / positive[-1])
+    if matrix.size <= MAX_EXACT_DIAGNOSTIC_SPECTRUM_ENTRIES:
+        transformed = matrix * weights
+        singular_values = np.linalg.svd(transformed, compute_uv=False)
+        positive = singular_values[singular_values > np.finfo(float).eps]
+        condition = np.inf if positive.size == 0 else float(positive[0] / positive[-1])
+        spectrum_scope = "full"
+    else:
+        # The fitted spectral block records its requested leading singular
+        # values separately.  Do not silently report those as a full-matrix
+        # condition number here.
+        singular_values = np.asarray([], dtype=float)
+        condition = np.nan
+        spectrum_scope = "skipped_large_matrix_diagnostic"
     median = quantiles["median"]
     max_to_median = np.inf if median == 0 else quantiles["max"] / median
     effective_variance = float(np.sum(eta_hat * weights**2))
@@ -322,6 +348,7 @@ def frequency_weights(
         effective_variance=effective_variance,
         transformed_singular_values=singular_values,
         transformed_condition_number=condition,
+        transformed_spectrum_scope=spectrum_scope,
     )
 
 
@@ -350,7 +377,13 @@ def preprocess_features(
         raise PreprocessingError(
             "thresholding destroyed the required rank K; see threshold diagnostics"
         )
-    retained = matrix[:, threshold.retained_indices]
+    identity_selection = (
+        threshold.retained_indices.size == matrix.shape[1]
+        and np.array_equal(
+            threshold.retained_indices, np.arange(matrix.shape[1], dtype=int)
+        )
+    )
+    retained = matrix if identity_selection else matrix[:, threshold.retained_indices]
 
     population_retained = None
     if population_M is not None:
@@ -375,7 +408,11 @@ def preprocess_features(
         population_M_retained=population_retained,
         true_A_retained=topics_retained,
     )
-    transformed = retained * weighting.weights
+    transformed = (
+        retained
+        if np.array_equal(weighting.weights, np.ones(retained.shape[1]))
+        else retained * weighting.weights
+    )
     return PreprocessingResult(
         X_original=matrix,
         X_retained=retained,

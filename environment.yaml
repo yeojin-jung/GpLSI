@@ -13,21 +13,16 @@ dependencies:
   - networkx
   - cvxpy
   - pytest
-  - anndata
-  - pyarrow
-  - psutil
-  - threadpoolctl
-  - pyyaml
-  - tqdm
+  - anndata        # Visium DLPFC
+  - tqdm           # utils/spatial_lda
   - palettable
-  - mpi4py         
 
   # For graph-regularized backend 
   # scikit-sparse 0.5.0 removed cholesky_AAt, which pycvxcluster.algos.admm imports.
   - scikit-sparse>=0.4.12,<0.5
   - suitesparse
 
-  # For TopicScore / R interface 
+  # Optional: R TopicScore baseline in the legacy simulation runner
   - rpy2
 
   # Allow installing extras via pip

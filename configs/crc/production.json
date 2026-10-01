@@ -1,0 +1,23 @@
+{
+  "extends": "../base.json",
+  "name": "crc_production",
+  "description": "Stanford CRC CODEX (196 regions, 113,561 cells x 8 neighbourhood cell types). Paper protocol, K = 2-5, five seeds. Each task runs as three parts: gplsi (+ graph-denoised Topic-SCORE), baselines, spatial_lda.",
+  "dataset": {
+    "name": "crc"
+  },
+  "grid": {
+    "K": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "seed": [
+      26090301,
+      26090302,
+      26090303,
+      26090304,
+      26090305
+    ]
+  }
+}

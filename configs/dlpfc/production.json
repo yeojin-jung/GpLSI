@@ -1,0 +1,162 @@
+{
+  "extends": "../base.json",
+  "name": "dlpfc_production",
+  "description": "Visium DLPFC, all 12 sections (one model per section; 2,000-gene training-only dispersion panel, 6-NN hexagonal graph). Paper protocol, five seeds. K = 7 on the eight sections with L1-L6 + WM, K = 5 on the four Br5595 sections (151669-151672: L3-L6 + WM only). Parts split sections by K and methods as in the other datasets.",
+  "dataset": {
+    "name": "dlpfc",
+    "file": "data/dlpfc/visium_dlpfc.h5ad",
+    "graph_k": 6,
+    "detection_fraction": 0.01,
+    "reference_panel_size": 500
+  },
+  "grid": {
+    "section": [
+      "151507",
+      "151508",
+      "151509",
+      "151510",
+      "151673",
+      "151674",
+      "151675",
+      "151676",
+      "151669",
+      "151670",
+      "151671",
+      "151672"
+    ],
+    "K": [
+      7
+    ],
+    "panel_size": [
+      2000
+    ],
+    "retained_fraction": [
+      1.0
+    ],
+    "seed": [
+      26090601,
+      26090602,
+      26090603,
+      26090604,
+      26090605
+    ]
+  },
+  "parts": {
+    "gplsi__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "baselines__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "spatial_lda__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "spatial_lda"
+      ]
+    },
+    "gplsi__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "baselines__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "spatial_lda__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "spatial_lda"
+      ]
+    }
+  }
+}

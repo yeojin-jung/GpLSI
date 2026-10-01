@@ -7,8 +7,30 @@ from time import perf_counter
 from typing import Any
 
 import numpy as np
+from scipy.sparse import csr_matrix, issparse
+from scipy.sparse.linalg import svds
 
 from .recovery import RecoveryError, project_rows_simplex
+
+
+MAX_EXACT_TOPICSCORE_SVD_ENTRIES = 10_000_000
+
+
+def _leading_left_singular_vectors(
+    matrix: np.ndarray, K: int
+) -> tuple[np.ndarray, np.ndarray, str]:
+    """Return the leading left singular vectors without a large full SVD."""
+
+    if matrix.size <= MAX_EXACT_TOPICSCORE_SVD_ENTRIES:
+        left, singular, _ = np.linalg.svd(matrix, full_matrices=False)
+        return left[:, :K], singular[:K], "numpy_full_svd"
+    # A fixed non-random start makes the ARPACK path repeatable.  svds returns
+    # values in ascending order, unlike numpy.linalg.svd.
+    start = np.ones(min(matrix.shape), dtype=float)
+    start /= np.linalg.norm(start)
+    left, singular, _ = svds(matrix, k=K, which="LM", v0=start)
+    order = np.argsort(singular)[::-1]
+    return left[:, order], singular[order], "scipy_arpack_truncated_svd"
 
 
 @dataclass
@@ -63,8 +85,10 @@ def _recover_W_from_A(
     """Fit document proportions on the simplex for a fixed Topic-SCORE A."""
 
     A = np.asarray(A_hat, dtype=float)
-    X = np.asarray(X, dtype=float)
+    X = X.astype(float, copy=False) if issparse(X) else np.asarray(X, dtype=float)
     W = np.full((X.shape[0], A.shape[0]), 1.0 / A.shape[0])
+    gram = A @ A.T
+    data_scores = np.asarray(X @ A.T)
     lipschitz = 2.0 * float(np.linalg.norm(A, 2) ** 2)
     if lipschitz <= np.finfo(float).eps:
         raise RecoveryError("Topic-SCORE A has zero spectral norm")
@@ -72,7 +96,10 @@ def _recover_W_from_A(
     converged = False
     iteration = 0
     for iteration in range(1, max_iter + 1):
-        gradient = 2.0 * (W @ A - X) @ A.T
+        # (W A - X) A^T = W (A A^T) - X A^T.  Precomputing the
+        # sufficient statistics changes the iterations from O(n p K) to
+        # O(n K^2) and avoids allocating an n-by-p residual each time.
+        gradient = 2.0 * (W @ gram - data_scores)
         candidate = project_rows_simplex(W - step * gradient)
         change = float(np.linalg.norm(candidate - W) / max(1.0, np.linalg.norm(W)))
         W = candidate
@@ -94,7 +121,11 @@ def _from_word_vectors(
     started = perf_counter()
     Xi = np.asarray(word_vectors, dtype=float).copy()
     eta = np.asarray(eta_hat, dtype=float).reshape(-1)
-    X = np.asarray(X_original, dtype=float)
+    X = (
+        X_original.astype(float, copy=False)
+        if issparse(X_original)
+        else np.asarray(X_original, dtype=float)
+    )
     if Xi.shape != (X.shape[1], K) or eta.size != X.shape[1]:
         raise RecoveryError("Topic-SCORE word vectors or eta have incompatible dimensions")
     if np.any(eta <= 0) or not np.isfinite(Xi).all():
@@ -165,17 +196,44 @@ def fit_topicscore_raw(X_original: np.ndarray, K: int) -> TopicScoreResult:
     """Faithful direct-raw port of the local Tran Topic-SCORE P0 call."""
 
     started = perf_counter()
-    X = np.asarray(X_original, dtype=float)
-    if X.ndim != 2 or np.any(X < 0):
+    if issparse(X_original):
+        X = csr_matrix(X_original, dtype=float, copy=False)
+        invalid = X.ndim != 2 or np.any(X.data < 0)
+    else:
+        X = np.asarray(X_original, dtype=float)
+        invalid = X.ndim != 2 or np.any(X < 0)
+    if invalid:
         raise RecoveryError("Topic-SCORE input must be a nonnegative document-by-word matrix")
-    eta_full = X.mean(axis=0)
+    large = X.shape[0] * X.shape[1] > MAX_EXACT_TOPICSCORE_SVD_ENTRIES
+    X_model = csr_matrix(X) if large and not issparse(X) else X
+    eta_full = np.asarray(X_model.mean(axis=0)).reshape(-1)
     retained = np.flatnonzero(eta_full > 0)
     if retained.size < K:
         raise RecoveryError("raw Topic-SCORE has fewer than K positive-frequency words")
-    X_retained = X[:, retained]
+    identity_selection = (
+        retained.size == X.shape[1]
+        and np.array_equal(retained, np.arange(X.shape[1], dtype=int))
+    )
+    X_retained = X_model if identity_selection else X_model[:, retained]
     eta = eta_full[retained]
-    normalized_word_document = X_retained.T / np.sqrt(eta)[:, None]
-    Xi, singular, _ = np.linalg.svd(normalized_word_document, full_matrices=False)
+    if large:
+        normalized_document_word = X_retained.multiply(
+            (eta**-0.5)[None, :]
+        ).tocsr()
+        start = np.ones(min(normalized_document_word.shape), dtype=float)
+        start /= np.linalg.norm(start)
+        _, singular, right = svds(
+            normalized_document_word, k=K, which="LM", v0=start
+        )
+        order = np.argsort(singular)[::-1]
+        singular = singular[order]
+        Xi = right[order].T
+        svd_backend = "scipy_arpack_sparse_truncated_svd"
+    else:
+        normalized_word_document = X_retained.T / np.sqrt(eta)[:, None]
+        Xi, singular, svd_backend = _leading_left_singular_vectors(
+            normalized_word_document, K
+        )
     result = _from_word_vectors(
         Xi[:, :K],
         eta,
@@ -185,6 +243,7 @@ def fit_topicscore_raw(X_original: np.ndarray, K: int) -> TopicScoreResult:
         source_metadata={
             "source": "local Tran r/score.r::score",
             "singular_values": singular[:K].tolist(),
+            "svd_backend": svd_backend,
             "native_preprocessing": "no threshold; frequency normalization eta^-1/2",
             "zero_frequency_handling": (
                 "mechanical removal before eta^-1/2 normalization; zero rows "
@@ -198,7 +257,7 @@ def fit_topicscore_raw(X_original: np.ndarray, K: int) -> TopicScoreResult:
         full_A = np.zeros((K, X.shape[1]))
         full_A[:, retained] = result.A_hat
         full_A /= full_A.sum(axis=1, keepdims=True)
-        W_hat, converged, iterations = _recover_W_from_A(full_A, X)
+        W_hat, converged, iterations = _recover_W_from_A(full_A, X_model)
         result.A_hat = full_A
         result.W_hat = W_hat
         result.selected_word_indices = retained[result.selected_word_indices]
@@ -240,12 +299,17 @@ def fit_topicscore_graph_denoised(
         if retained_indices is None
         else np.asarray(retained_indices, dtype=int)
     )
+    identity_selection = (
+        retained.size == X.shape[1]
+        and np.array_equal(retained, np.arange(X.shape[1], dtype=int))
+    )
+    X_retained = X if identity_selection else X[:, retained]
     r = np.ones(retained.size) if weights is None else np.asarray(weights, dtype=float)
     if V.shape != (retained.size, U.shape[1]) or singular.size != U.shape[1]:
         raise RecoveryError("graph Topic-SCORE factors have incompatible dimensions")
     if np.linalg.norm(U.T @ U - np.eye(U.shape[1])) > 1e-8:
         raise RecoveryError("graph Topic-SCORE requires orthonormal Uhat")
-    eta = X[:, retained].mean(axis=0)
+    eta = X_retained.mean(axis=0)
     if np.any(eta <= 0) or np.any(r <= 0):
         raise RecoveryError("graph Topic-SCORE requires positive eta and weights")
     original_word_factor = (V * singular[None, :]) / r[:, None]
@@ -254,7 +318,7 @@ def fit_topicscore_graph_denoised(
     retained_result = _from_word_vectors(
         Xi[:, : U.shape[1]],
         eta,
-        X[:, retained],
+        X_retained,
         U.shape[1],
         method="topicscore_graph_denoised",
         source_metadata={

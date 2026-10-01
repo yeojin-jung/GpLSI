@@ -1,0 +1,54 @@
+{
+  "extends": "base.json",
+  "name": "smoke",
+  "description": "Wiring check with a tiny penalty grid and few iterations.",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ]
+    },
+    {
+      "geometry": "word_Z",
+      "preprocessings": [
+        "P0_raw"
+      ],
+      "vertex_hunters": [
+        "spa_current"
+      ]
+    }
+  ],
+  "baselines": [
+    "topicscore_graph_denoised",
+    "topicscore_raw",
+    "lda",
+    "kl_nmf",
+    "graph_kl_nmf",
+    "spatial_lda"
+  ],
+  "grid": {
+    "section": [
+      "151673"
+    ],
+    "seed": [
+      26090401
+    ]
+  },
+  "spectral": {
+    "grid_len": 3,
+    "maxiter": 3,
+    "nfolds": 3
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "extends": "../base.json",
+  "name": "dlpfc_production_tran",
+  "description": "Visium DLPFC, same design, seeds and parts as production.json, but the vocabulary is every gene passing the Tran threshold at alpha = 0.1 on the section's training counts (about 1,300-2,300 of 33,538 genes; paper rule, no top-10% fallback) instead of the top-2,000 dispersion panel. Same seeds give the same count splits, so the two vocabularies are compared seed by seed. Held-out deviance is not comparable across the two (different vocabularies).",
+  "dataset": {
+    "name": "dlpfc",
+    "file": "data/dlpfc/visium_dlpfc.h5ad",
+    "graph_k": 6,
+    "vocabulary": "tran",
+    "tran_alpha": 0.1
+  },
+  "grid": {
+    "section": [
+      "151507",
+      "151508",
+      "151509",
+      "151510",
+      "151673",
+      "151674",
+      "151675",
+      "151676",
+      "151669",
+      "151670",
+      "151671",
+      "151672"
+    ],
+    "K": [
+      7
+    ],
+    "retained_fraction": [
+      1.0
+    ],
+    "seed": [
+      26090601,
+      26090602,
+      26090603,
+      26090604,
+      26090605
+    ]
+  },
+  "parts": {
+    "gplsi__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "baselines__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "spatial_lda__K7": {
+      "grid": {
+        "section": [
+          "151507",
+          "151508",
+          "151509",
+          "151510",
+          "151673",
+          "151674",
+          "151675",
+          "151676"
+        ],
+        "K": [
+          7
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "spatial_lda"
+      ]
+    },
+    "gplsi__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "baselines__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda"
+      ]
+    },
+    "spatial_lda__K5_br5595": {
+      "grid": {
+        "section": [
+          "151669",
+          "151670",
+          "151671",
+          "151672"
+        ],
+        "K": [
+          5
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "spatial_lda"
+      ]
+    }
+  }
+}

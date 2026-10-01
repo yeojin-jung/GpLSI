@@ -1,0 +1,32 @@
+{
+  "extends": "base.json",
+  "name": "panel",
+  "description": "Gene-panel size sweep (nested training-only panels): thresholding on/off x 3 hunters x 3 A recoveries, plus non-spatial baselines.",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs_star",
+        "palm_accelerated"
+      ]
+    }
+  ],
+  "baselines": [
+    "topicscore_raw",
+    "lda",
+    "kl_nmf"
+  ],
+  "grid": {
+    "panel_size": [
+      500,
+      1000,
+      2000,
+      5000
+    ]
+  }
+}

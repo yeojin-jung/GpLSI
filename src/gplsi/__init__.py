@@ -21,7 +21,6 @@ except PackageNotFoundError:
 # the core estimator.
 from .gplsi import GpLSI
 from .anchor_word import build_word_profile, recover_W_from_word_vertices
-from .estimators import ExperimentalEstimate
 from .preprocessing import preprocess_features
 from .vertex_hunting import vertex_hunt
 from .real_data import RealDataBundle, load_real_data
@@ -38,14 +37,11 @@ from .utils import (
 )
 
 
-# Preserve the original experiment entry points without loading their optional
-# R/MPI dependencies when importing the estimator package.
+# Load the simulation entry points lazily so their optional R dependency is
+# not needed just to import the estimator package.
 _LAZY_EXPORTS = {
     "run_simulation_grid": "simulation",
     "SimulationConfig": "simulation",
-    "run_spleen_analysis": "realdata_spleen",
-    "run_crc_analysis": "realdata_crc",
-    "run_cook_analysis": "realdata_cook",
 }
 
 
@@ -75,7 +71,6 @@ __all__ = [
     "get_PAS",
     "build_word_profile",
     "recover_W_from_word_vertices",
-    "ExperimentalEstimate",
     "preprocess_features",
     "vertex_hunt",
     "RealDataBundle",

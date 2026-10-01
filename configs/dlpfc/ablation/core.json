@@ -1,0 +1,41 @@
+{
+  "extends": "base.json",
+  "name": "core",
+  "description": "Full factorial on the 2,000-gene panel: 4 preprocessings x 6 hunters x 2 A recoveries (+ post-hoc Poisson), anchor-feature GpLSI, and all baselines.",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ]
+    },
+    {
+      "geometry": "word_Z",
+      "preprocessings": [
+        "P0_raw"
+      ],
+      "vertex_hunters": [
+        "spa_current"
+      ]
+    }
+  ],
+  "baselines": [
+    "topicscore_graph_denoised",
+    "topicscore_raw",
+    "lda",
+    "kl_nmf",
+    "graph_kl_nmf",
+    "spatial_lda"
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "extends": "base.json",
+  "name": "handoff_crc_production",
+  "description": "Stanford CRC CODEX, all regions. Every GpLSI variant uses seed 26090301; LDA and spatial LDA also run seeds 26090302-3.",
+  "dataset": {
+    "name": "crc"
+  },
+  "grid": {
+    "K": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "seed": [
+      26090301
+    ]
+  },
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P1_tran_alpha_0p005",
+        "P2_ke_weighted",
+        "P3_tran_then_ke"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "palm",
+        "palm_accelerated"
+      ]
+    }
+  ],
+  "baselines": [
+    "plsi",
+    "topicscore_raw",
+    "topicscore_graph_denoised",
+    "lda",
+    "spatial_lda"
+  ],
+  "parts": {
+    "P0_raw__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P0_raw"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": [
+        "topicscore_graph_denoised"
+      ]
+    },
+    "P0_raw__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P0_raw"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P1_tran_alpha_0p005__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p005"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P1_tran_alpha_0p005__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P1_tran_alpha_0p005"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P2_ke_weighted__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P2_ke_weighted"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P2_ke_weighted__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P2_ke_weighted"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P3_tran_then_ke__fast": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P3_tran_then_ke"
+          ],
+          "vertex_hunters": [
+            "spa_current",
+            "palm",
+            "palm_accelerated"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "P3_tran_then_ke__svs": {
+      "gplsi": [
+        {
+          "geometry": "document_U",
+          "preprocessings": [
+            "P3_tran_then_ke"
+          ],
+          "vertex_hunters": [
+            "svs",
+            "svs_star"
+          ]
+        }
+      ],
+      "baselines": []
+    },
+    "baselines": {
+      "gplsi": [],
+      "baselines": [
+        "plsi",
+        "topicscore_raw",
+        "lda",
+        "spatial_lda"
+      ]
+    },
+    "baseline_seeds": {
+      "grid": {
+        "seed": [
+          26090302,
+          26090303
+        ]
+      },
+      "gplsi": [],
+      "baselines": [
+        "lda",
+        "spatial_lda"
+      ]
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "extends": "base.json",
+  "name": "k5_br5595",
+  "description": "K = 5 on Br5595 (151669; only L3-L6 + WM are labelled), where K = 7 over-splits and seed spread is largest. P0 and P2 only (P1 = P0 and P3 = P2 at p = 2,000), all six hunters, anchor, all baselines, on the 50-point penalty grid so P2 is not under-smoothed (P0's lambda is interior on both grids).",
+  "gplsi": [
+    {
+      "geometry": "document_U",
+      "preprocessings": [
+        "P0_raw",
+        "P2_ke_weighted"
+      ],
+      "vertex_hunters": [
+        "spa_current",
+        "svs",
+        "svs_star",
+        "pp_spa",
+        "palm",
+        "palm_accelerated"
+      ]
+    },
+    {
+      "geometry": "word_Z",
+      "preprocessings": [
+        "P0_raw"
+      ],
+      "vertex_hunters": [
+        "spa_current"
+      ]
+    }
+  ],
+  "baselines": [
+    "topicscore_graph_denoised",
+    "topicscore_raw",
+    "lda",
+    "kl_nmf",
+    "graph_kl_nmf",
+    "spatial_lda"
+  ],
+  "grid": {
+    "section": [
+      "151669"
+    ],
+    "K": [
+      5
+    ]
+  },
+  "spectral": {
+    "grid_len": 50
+  }
+}
